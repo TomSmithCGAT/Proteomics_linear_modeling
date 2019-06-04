@@ -1,0 +1,247 @@
+---
+title: "Identifying changes in RNA binding using a linear model"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+In this notebook, we will apply the linear model approach presented in (`1_simple_example`) to a real-life data set.
+
+```{r, message=FALSE, warning=FALSE}
+# load packages
+library(tidyverse)
+library(biobroom)
+library(MSnbase)
+
+# set up standardised plotting scheme
+theme_set(theme_bw(base_size = 20) +
+            theme(panel.grid.major=element_blank(),
+                  panel.grid.minor=element_blank(),
+                  aspect.ratio=1))
+
+cbPalette <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7", "#999999")
+```
+
+We start by reading in the data. Our input here is the protein-level quantification for the Nocodazole arrest/release experiment conducted for the OOPS NBT paper. In this experiment, we wanted to assess changes in RNA binding in arrested/released cells. To do this, we quantified "total" protein abundance and RNA-bound (extracted by OOPS) protein abundance. The peptide-level abundances have been aggregated to protein level abundance and center-median normalised. Proteins with missing values have been removed.
+
+```{r}
+total_protein_quant <- readRDS("../raw/total_res_pro_agg_norm.rds")
+rbp_protein_quant <- readRDS("../raw/rbp_res_pro_agg_norm.rds")
+```
+
+The input data are in MSnSets. As a reminder, the `MSnSet` class mimics the `ExpressionSet` class and contains 3 matrices:
+1. assay data (obtained via: `exprs`)
+2. feature data (`fData`)
+3. phenotype data (`pData`)
+
+The assay data is the quantification of the features (PSMs/peptides/proteins) and contains one column per sample
+
+The feature data describes each feature, e.g peptide sequence, master protein accession, retention time etc etc
+
+The phenotype data describes the samples
+
+Let's take a look at our total protein quantification data. If we "print" the object, we get a summary including the processing steps performed. So, here we have 2761 features (proteins) quantified across 10 samples. The `varLabels` describe the "Condition", "Replicate" and "Type" for these samples. We'll take a look at these in more detail shortly. We can see that there were originall 20171 features which were combined into 18111 features using a user-defined function. This was the step at which peptides with the same sequence but different variable modifications were aggregated. Then, these 18111 features were combined into the 2761 features (peptide->protein aggregation). Finally, the data was center-median normalised and missing values with imputed with knn. 
+```{r}
+print(total_protein_quant)
+```
+
+
+
+Here's the top of the assay data
+```{r}
+print(dim(exprs(total_protein_quant)))
+print(head(exprs(total_protein_quant), 2))
+```
+
+... and the associated feature data. Notice that there are many columns in the feature data. These are all the additional columns output from PD in addition to the quantification. They are all stored here in case they are required.
+```{r}
+print(head(fData(total_protein_quant), 2))
+```
+
+... and here is the phenotype data. As we can see, we have 3 replicates each of "M", "G1" and "S" phase, plus an additional Control sample. For our purposes, we're only going to be interested in the M and G1 phases so we can remove the other data. Both the total and RBP quantification objects have the exact same order
+```{r}
+print(pData(total_protein_quant))
+```
+
+Below, we make a boolean from Conditions to subset the samples to those which are "M" or "G1"
+```{r}
+# identify the samples we want to keep
+samples_to_keep <- pData(total_protein_quant)$Condition %in% c("M", "G1")
+print(samples_to_keep)
+
+total_protein_quant <- total_protein_quant[, samples_to_keep] 
+rbp_protein_quant <- rbp_protein_quant[, samples_to_keep]
+
+print(pData(total_protein_quant))
+print(pData(rbp_protein_quant))
+
+
+```
+
+To detect changes in RNA binding, we can only consider RBPs where we have also quantified the total protein. Below, we identify these cases by intersecting the rownames of each MSnSet (the protein names)
+```{r}
+intersecting_proteins <- intersect(rownames(total_protein_quant), rownames(rbp_protein_quant))
+
+cat(sprintf("Out of a total of %s RBPs quantified,\nwe have total protein quantification for %s proteins = %s %%",
+            length(rownames(rbp_protein_quant)),
+            length(intersecting_proteins),
+            round(100*length(intersecting_proteins)/length(rownames(rbp_protein_quant)), 2)))
+```
+
+
+Below, we convert the MSnSet into a "tidy" format `data.frame` using `tidy`
+```{r}
+
+total_exprs <- total_protein_quant[intersecting_proteins,] %>% # subset to intersecting proteins
+  tidy(addPheno=TRUE)  %>% # "tidy" the object, e.g make it into a tidy data format --> long
+  mutate(intensity=value) %>% dplyr::select(-value) # rename the "value" column -> "intensity"
+
+```
+
+Top of the total protein expression `data.frame`. See how each intensity value now has it's own row with the other columns describing the associated aspects of the intensity value, e.g the protein and experimental condition
+```{r}
+print(head(total_exprs))
+```
+Now we do the same for the RBP quantification and then concatenate the two data frames together.
+```{r}
+oops_exprs <- rbp_protein_quant[intersecting_proteins,] %>%
+  tidy(addPheno=TRUE)  %>%
+  mutate(intensity=value) %>% dplyr::select(-value)
+
+combined_exprs <- rbind(total_exprs, oops_exprs)
+```
+
+We want to tell R which is the order of the values in the condition and type columns so that the fold changes are in the expected direction, e.g positive = higher in G1 vs M.
+```{r}
+combined_exprs$condition <- factor(combined_exprs$Condition, levels=c("M", "G1"))
+combined_exprs$type <- factor(combined_exprs$Type, levels=c("Total", "OOPS"))
+
+```
+
+
+
+Now we model the protein intensity according to the models described in `1_simple_example_vd.Rmd`. As an example, let's see the results from just applying the models to a single UniprotID.
+```{r}
+combined_exprs %>% filter(protein == 'A0AVT1') %>%
+  ggplot(aes(Condition, intensity, group=1, colour=factor(Sample_name))) +
+  geom_point(size=2) +
+  stat_summary(geom="line") +
+  scale_colour_discrete(name="Tag") +
+  xlab("") +
+  facet_wrap(~type)
+
+fit <- combined_exprs %>% filter(protein == 'A0AVT1') %>%
+  lm(formula=intensity~Condition*Type)
+
+print(summary(fit))
+
+
+fit <- combined_exprs %>% filter(protein == 'A0AVT1') %>%
+  lm(formula=intensity~Condition*Type+Sample_name)
+
+print(summary(fit))
+```
+
+We can see that the model fits the data well ("Multiple R-squared:  0.9673,	Adjusted R-squared:  0.955 "). We can see that the interaction term that we're interested in (for changes in RNA binding) significantly deviates from zero in both models.
+
+Below, we make a function to run the linear models on a protein, select the best model and then return the required values from the model. When we run on the same protein as above, we can see that the best model is the one including the TMT tag as a co-variate.
+```{r}
+testModels <- function(obj, coeff_of_interest="conditionG1:typeOOPS"){
+  
+  fit1 <- obj %>% lm(formula=intensity ~ condition + type + condition*type + sample)
+  
+  fit2 <- obj %>% lm(formula=intensity ~ condition + type + condition*type)
+  
+  if ( AIC(fit1) < AIC(fit2) ) {
+    chosen_fit <- fit1
+    fit_name <- "With_tag"
+
+  } else {
+    chosen_fit <- fit2
+    fit_name <- "Without_tag"
+  }
+
+  fit_values <- c(round(coef(summary(chosen_fit))[coeff_of_interest,], 4),
+                  round(summary(chosen_fit)$adj.r.squared, 4))
+  
+  names(fit_values) <- c("lm_fold_change", "lm_std_error", "lm_t_value", "lm_p_value", "lm_adj_R_squared")
+  fit_values <- as.data.frame(t(fit_values), stringsAsFactors=FALSE)
+  fit_values$fit <- fit_name
+  
+  return(fit_values)
+}
+
+```
+
+```{r}
+combined_exprs %>% filter(protein == 'A0AVT1') %>% testModels()
+```
+
+Below, we make a function to run the `testModels()` function on all proteins in turn using dplyr.
+```{r}
+runLM <- function(obj, coeff_of_interest="conditionG1:typeOOPS"){
+  results <- obj %>%
+    group_by(protein) %>% # group the data frame by the unique protein values
+    do(testModels(., coeff_of_interest)) # Apply the testModels functions to each group; "." here is the whole data frame 
+
+  results$lm_BH <- p.adjust(results$lm_p_value, method="BH")# FDR 
+  
+  return(results)
+   
+}
+
+M_G1 <- combined_exprs %>% runLM()
+
+```
+
+Below, we plot the p-values. Under the null hypothesis they should show an approximately uniform distribution. If there were a large number of proteins with a significant change in RNA binding, we would expect an additional "spike" with low p-values (<0.05). We see an approximately uniform distribution but with a slight skew towards low p-value. This may indicate the presence of changes in RNA binding but which we are insufficiently powered to detect, e.g low p-value but not significant low p-value.
+```{r}
+plotP <- function(obj){
+  p <- ggplot(obj, aes(lm_p_value)) + geom_histogram(bins=20)
+  print(p)
+}
+
+plotP(M_G1)
+``` 
+
+
+Below, we tabulate the results. We will use the standard Benjamini-Hochberg method to adjust p-values for the multiple tests we have conducted here (1916 proteins). 
+
+```{r}
+summariseSignificantChanges <- function(obj){
+  cat("Which fit was best?")
+  print(table(obj$fit))
+  
+  cat("\nHow many p-values < 0.01 per fit 'type'?")
+  print(table(obj$fit, obj$lm_p_value<0.01))
+  
+  cat("\nHow many significant changes in RNA binding (1% FDR)?")
+  print(table(ifelse(obj$lm_BH<0.01, "Sig.", "Not Sig."), ifelse(obj$lm_fold_change>0, "Up", "Down")))
+  
+  cat("\nHow many significant changes in RNA binding (10% FDR)?")
+  print(table(ifelse(obj$lm_BH<0.1, "Sig.", "Not Sig."), ifelse(obj$lm_fold_change>0, "Up", "Down")))
+
+}
+
+summariseSignificantChanges(M_G1)
+```
+So, we have detected a lot of proteins with a signficant change in RNA binding!!
+
+We can use volcano plots to take a look at the estimated fold changes and associated p-values
+```{r}
+M_G1 %>%
+  mutate(sig=ifelse(lm_BH<0.01, "Sig.", "Not sig.")) %>% # add "sig" column
+  ggplot(aes(x=lm_fold_change, y=-log10(lm_p_value), colour=sig)) +
+  geom_point(size=0.25) + 
+  scale_colour_manual(values=c("black", cbPalette[6]), name="") + # manually adjust colours
+  facet_wrap(~fit) + # separate plots depending on model used
+  xlab("Fold change (log2-space)") +
+  ylab("-log10(p-value)") +
+  guides(colour = guide_legend(override.aes = list(size = 3))) # manually set aesthetics for legend to make points larger
+```
+
+
+Finally, we save out the results for use in later notebooks
+```{r}
+saveRDS(M_G1, "../results/M_G1_changes_in_RNA_binding_linear_model.rds")
+```
+

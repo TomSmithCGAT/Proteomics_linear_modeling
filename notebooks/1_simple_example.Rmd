@@ -1,0 +1,197 @@
+---
+title: "An example use of linear model"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+```{r, message=FALSE, warning=FALSE}
+# load packages
+library(tidyverse)
+
+# set up standardised plotting scheme
+theme_set(theme_bw(base_size = 20) +
+            theme(panel.grid.major=element_blank(),
+                  panel.grid.minor=element_blank(),
+                  aspect.ratio=1))
+```
+
+
+In this notebook, we will explore the basics of applying linear modelling to identify changes in protein abundance. Ultimately, we'll build towards identifying changes in RNA binding.
+
+First, we need to create some toy data:
+
+In this imaginary dataset, we've quantified "Total" protein abundance and RNA-bound protein using OOPS across a "Control/Treatment" experiment (n=3). For both total and OOPS, we have performed a 6-plex TMT experiment such that we have separately obtained protein-level abundance for "Total" and "OOPS" across the same samples. The abundance values have already been log2-transformed.
+
+To start, we'll consider the "Total" data 
+```{r}
+
+total_data <- matrix(c(3.5,5,4.5,4.5,4,4.8), nrow=1)
+colnames(total_data) <- paste("Total", rep(c("Control", "Treated"), each=3), 1:6, sep="_")
+rownames(total_data) <- "PROTEIN_1"
+
+print(total_data)
+```
+
+In order to perform the linear modelling, we first need to reshape the data from "wide" to "long" format
+```{r}
+total_data_for_lm <- total_data %>%
+  data.frame() %>% # make into data.frame() so it can handled by gather() 
+  gather(key="sample", value="intensity") %>% # convert from wide to long with two columns, "sample" and "intensity"
+  separate(sample, into=c("type", "condition", "tag"), remove=FALSE) %>% # separate the same name into the constituent parts
+  mutate(condition=factor(condition, levels=c("Control", "Treated"))) # make "Control" the first condition
+
+print(total_data_for_lm)
+```
+Now let's visualise these intensity values
+```{r}
+total_data_for_lm %>%
+  ggplot(aes(condition, intensity, group=1)) +
+  geom_point(size=2) + # plot a point for each row in the input data
+  stat_summary(geom="line") + #  summarise each group (defaults to mean) and plot line
+  xlab("")
+  
+```
+OK, so if we were interested in identify significant changes in protein abundance upon treatment, we can simply use a linear model where the intensity values are assumed to be drawn from a normal distribution described by a constant factor (Intercept) and the condition (Control or Treatment). We want to estimate the value for the Intercept and condition coefficients. If the condition coefficient is significant different from 0, we can state that the condition appears to have a signficant affect on the intensity. 
+
+Below, we peform this linear modelling using the base R function `lm` and the formula `intensity~condition`, e.g the dependent variable is `intensity` and the indepdent variable is `. When we summarise the fit, we can see that the coefficient for the condition ("conditionTreated") is estimated to be positive (Estimate=0.1667). However, the Std. Error for the coefficient estimate is very large (0.5270; we only have 3 replicates) and the p-value is therefore large (p=0.77). Thus, the coefficient cannot be said to be signficantly different from zero and the treated appears not to affect the abundance of the protein.
+```{r}
+fit <- total_data_for_lm %>% lm(formula=intensity~condition)
+summary(fit)
+```
+
+Note that the above linear model is exactly the same as a two-sided student's t-test (assuming equal variance; shown below) or a one way Analysis of Variance (ANOVA; not shown).
+```{r}
+# extract intensity values as vectors
+treated_values <- total_data_for_lm[total_data_for_lm$condition=="Treated", "intensity"]
+control_values <- total_data_for_lm[total_data_for_lm$condition=="Control", "intensity"]
+
+t.test(treated_values, control_values, var.equal = TRUE)
+```
+
+So, why not just use a t-test? Because it isn't suitable for more complex experimental designs...
+
+Now, let's introduce our toy OOPS data.
+```{r}
+oops_data <- matrix(c(2,2.1,1.2,3.5,4,4.1), nrow=1)
+colnames(oops_data) <- paste("OOPS", rep(c("Control", "Treated"), each=3), 1:6, sep="_")
+rownames(oops_data) <- "PROTEIN_1"
+
+print(oops_data)
+
+oops_data_for_lm <- oops_data %>%
+  data.frame() %>% # make into data.frame() so it can handled by gather() 
+  gather(key="sample", value="intensity") %>% # convert from wide to long with two columns, "sample" and "intensity"
+  separate(sample, into=c("type", "condition", "tag"), remove=FALSE) %>%
+  mutate(condition=factor(condition, levels=c("Control", "Treated"))) # make "Control" the first condition
+
+print(oops_data_for_lm)
+```
+
+Now, we concatenate together the Total and OOPS data. This is possible since both dataframes have the same columns
+```{r}
+combined_data_for_lm <- rbind(total_data_for_lm, oops_data_for_lm) %>%
+  mutate(type=factor(type, levels=c("Total", "OOPS"))) %>% # make "Total" the first data type
+  mutate(tag=factor(tag, levels=1:6))
+
+print(combined_data_for_lm)
+```
+
+Now, let's take a look at the intensities across our combined data. 
+```{r}
+combined_data_for_lm %>%
+  ggplot(aes(condition, intensity, group=1)) +
+  geom_point(size=2) +
+  stat_summary(geom="line") +
+  xlab("") +
+  facet_wrap(~type)
+```
+
+As we can see above, there is a stronger increase in abundance between Control and Treated in the OOPS samples than in the Total samples. This could indicate an increase in RNA binding for this protein between Control and Treated. The question is, is the difference significant....
+
+We can do this very easily by modeling the protein abundance across both TMT plexes and looking for a significant interaction between the condition (Control/Treated) and the type (Total/OOPS). In essense, this is equivalent to estimating the difference between the gradients for the two lines above. The formula for this model is therefore `Intensity ~ condition + type + condition:type`, where `condition:type` is the only coefficient we are actually interested in.
+
+Below, we can see that the coefficient for the interaction term is estimated as 2 +/- 0.75 (p=0.03). Note that the `type` coefficient is also significant (-1.83 +/- 0.53) however this just tells us that the overal intensity of the protein was lower in the OOPS samples than the Total samples which is not interesting to us since such comparisons between the TMT plexes are not valid (however the term is required in the model to account for them!).
+```{r}
+fit <- combined_data_for_lm %>%
+  # note that one can also use the condition*type shorthand which expands to condition + type + condition:type
+  lm(formula=intensity ~ condition + type + condition:type) 
+
+print(summary(fit))
+
+```
+
+The last thing to consider is that we have actually quantified Total and OOPS from the exact same samples (Organic phase and Interface). Therefore, we can include the sample as a "blocking" factor. 
+
+With the toy data, the sample number is indicated by the tag number as we have used the same tag for the Total and OOPS quantification. Note that we are not trying to model any systemic differences in tag labelling efficiency here (the data should already have been e.g center median normalised). Rather, we are interested in accounting for relative difference in the distribution of protein abundances within each sample. E.g if a protein was by chance more abundant in the first Control sample we would expect the intensity of the protein to be higher in Total_Control_1 vs Total_Control_2 or Total_Control_3 and OOPS_Control_1 to be higher than OOPS_Control_2 or OOPS_Control_3.
+
+By and large, the more blocking factors in your experimental design, the easier it is to identify signficant effects for the biological factors of interest. For example, if possible, it's always better to pair the control/treated samples, especially if you expect the baseline (e.g Control) condition to be relatively variable.
+
+So, first, let's highlight the data by tag to visualise this. Notice that the most abundant sample in Control is tag 2, for both Total and OOPS and the most abundant sample in Treated is tag 6 for both Total and OOPS. The rank isn't exactly the same but there does appear to be some relationship.
+```{r}
+combined_data_for_lm %>%
+  ggplot(aes(condition, intensity, group=1, colour=factor(tag))) +
+  geom_point(size=2) +
+  stat_summary(geom="line") +
+  scale_colour_discrete(name="Tag") +
+  xlab("") +
+  facet_wrap(~type)
+```
+
+Now, let's fit a model including the tag as well...
+
+The first thing we notice is that we have a lot more coefficients estimated now. Also, we can now longer estimate a coefficient for the `condition`. This is because some of the independent variables are now co-linear. Essentially, we're getting to the limit of the sensible number of indepedent variables we can include to model the protein intensity. The important thing to notice is that the interaction term is still signficant.
+```{r}
+fit <- combined_data_for_lm %>%
+  lm(formula=intensity ~ tag + condition + type + condition*type )
+
+print(summary(fit))
+
+```
+
+The question then is which model is "better"
+
+We can formally compare two models using the [Akaike information criterion](https://en.wikipedia.org/wiki/Akaike_information_criterion). AIC measures the "goodness of fit" but with penalises models which use too many parameters to reach the goodness of fit. This is similiar to the adjusted R-Squared above. Lower AIC indicates a "better" model.
+
+So, for our full set of proteins, we will try both models (+/- tag) and take the one with the lowest AIC
+
+```{r}
+testModels <- function(obj, coeff_of_interest="conditionTreated:typeOOPS"){
+  
+  fit1 <- obj %>% lm(formula=intensity ~ condition + type + condition*type + tag)
+  
+  fit2 <- obj %>% lm(formula=intensity ~ condition + type + condition*type)
+  
+  cat(sprintf("fit1 (with tag) has AIC of %s\n", AIC(fit1)))
+  cat(sprintf("fit2 (without tag) has AIC of %s\n", AIC(fit2)))
+  
+  min_AIC <- min(AIC(fit1), AIC(fit2))
+  max_AIC <- max(AIC(fit1), AIC(fit2))
+  
+  cat(sprintf("The best model is %s times more likely to minimise the information loss\n\n",
+              round(1/exp((min_AIC-max_AIC)/2),3)))
+  
+  if ( AIC(fit1) < AIC(fit2) ) {
+    chosen_fit <- fit1
+    fit_name <- "With_tag"
+
+  } else {
+    chosen_fit <- fit2
+    fit_name <- "Without_tag"
+  }
+
+  fit_values <- c(round(coef(summary(chosen_fit))[coeff_of_interest,], 4),
+                  round(summary(chosen_fit)$adj.r.squared, 4),
+                  fit_name)
+  
+  names(fit_values)[4:6] <- c("p_value", "adj_R_squared", "fit")
+  
+  return(fit_values)
+}
+
+combined_data_for_lm %>% testModels()
+```
+So it turns out the model without the `tag` variable is a slightly model and we will therefore use the coefficient estimate (fold-change) and p-value from this model.
+
+Now we've satisfactorily modeled the intensity for a single protein, let's try this with a full data set (see `2_identify_changes_in_RNA_binding.Rmd` notebook)
+

@@ -1,0 +1,389 @@
+---
+title: "Using LIMMA in proteomics"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+Here, we will explore the use of LIMMA (“linear models for microarray data”) for performing linear modelling.
+
+The original limma publication (2004!!) is here: https://www.ncbi.nlm.nih.gov/pubmed/16646809
+For a proper explanation of the statitical model see: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5373812/
+
+To save repeating the work of other in describing the use of `limma`, I refer you to this introduction from Kasper D. Hansen:
+https://kasperdanielhansen.github.io/genbioconductor/html/limma.html. 
+
+Note that the data used in the above is microarray data in an `ExpressionSet` object. However, limma is agnostic to the type of input data and is perfectly suitable for proteomics data so long as it's reasonable to assume the quantification values are approximately gaussian distributed. For this reason, the quantification values should first be log transformed. 
+
+As stated in the documentation for the MSnSet class (https://www.rdocumentation.org/packages/MSnbase/versions/1.20.7/topics/MSnSet-class): " The `MSnSet` class is derived from the `eSet` class and mimics the `ExpressionSet` class classically used for microarray data." It's therefore relatively straightforward to use `limma` with proteomics data in a `MSnSet`.
+
+```{r, message=FALSE, warning=FALSE}
+# load packages
+library(tidyverse)
+library(limma)
+library(biobroom)
+library(Hmisc)
+library(MSnbase)
+
+# set up standardised plotting scheme
+theme_set(theme_bw(base_size = 20) +
+            theme(panel.grid.major=element_blank(),
+                  panel.grid.minor=element_blank(),
+                  aspect.ratio=1))
+
+cbPalette <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7", "#999999")
+```
+
+Again, we read in the MSnSets and subset to the samples of interest
+```{r}
+total_protein_quant <- readRDS("../raw/total_res_pro_agg_norm.rds")
+rbp_protein_quant <- readRDS("../raw/rbp_res_pro_agg_norm.rds")
+
+# identify the samples we want to keep
+samples_to_keep <- grep("M_|G1_", pData(total_protein_quant)$Sample_name)
+print(samples_to_keep)
+
+total_protein_quant <- total_protein_quant[,samples_to_keep]
+rbp_protein_quant <- rbp_protein_quant[,samples_to_keep]
+```
+
+Let's start by applying limma to the total protein quantification data only. First of all we need to create a design matrix. We can do this from the `pData` since this contains the information about the samples
+```{r}
+condition <- pData(total_protein_quant)$Condition
+design <- model.matrix(~condition)
+print(design)
+```
+
+Then we fit the model using this design and update the estimates for the standard errors for each coefficient using the `eBayes` function. As expected, there is a relationship between mean intensity and variance, although this is almost all limited to the very low intensity values. Limma will use this relationship to moderate the standard errors for the coefficients estimated such that the per-protein variance estimates are "squeezed" towards the expectation derived from other proteins with similar mean intensity.
+
+```{r}
+
+tidy(total_protein_quant, addPheno=TRUE) %>%# "tidy" the object, e.g make it into a tidy data format --> long
+  group_by(protein, Condition) %>% # group by protein and condition
+  dplyr::summarise(mean=mean(value), sqrt_sd=sqrt(sd(value))) %>% # mean and var for each group
+  ggplot(aes(mean, sqrt_sd)) + # plot mean(intensity) vs sqrt(sd(intensity))
+  geom_point(size=0.1) +
+  geom_smooth(se=FALSE, method="loess") + # local regression
+  xlab("Mean intensity") +
+  ylab("sqrt(sd/mean)")
+
+```
+
+Below we run limma to idenify the proteins with a significant change in abundance between conditions
+```{r}
+total_fit_lm <- lmFit(exprs(total_protein_quant), design) # fit model to each protein
+total_fit_lm_e <- eBayes(total_fit_lm) # shrink std errors to abundance vs. stdev trend
+
+total_fit_lm_e_c <- contrasts.fit(total_fit_lm_e, coefficients=c("conditionM")) # extract results for coefficient of interest
+
+p_value_status <- ifelse(total_fit_lm_e_c$p.value[,'conditionM']<0.01, "sig", "not_sig") # identify significant changes
+
+# plot
+limma::plotMA(total_fit_lm_e_c, status=p_value_status,
+       col=c(cbPalette[6], "black"), cex=c(0.5,0.1), main="")
+
+
+
+```
+Note that most of these changes are relatively slight (<2-fold)
+```{r}
+# Extract all results from limma (n=Inf)
+all_results <- topTable(total_fit_lm_e_c, coef = "conditionM", n = Inf)
+
+my_volcanoplot <- function(topTableResults){
+  p <- topTableResults %>%
+    mutate(sig=ifelse(adj.P.Val<0.01, "sig.", "not sig.")) %>% # add "sig" column
+    ggplot(aes(logFC, -log10(P.Value), colour=sig)) +
+    geom_point(size=0.25) +
+    scale_colour_manual(values=c("black", cbPalette[6]), name="") # manually adjust colours
+  
+  return(p)
+}
+
+my_volcanoplot(all_results)
+```
+
+
+OK, so it's easy to perform the pairwise comparison. What about changes in RNA binding? For this, we need combine the two MSnSets into a single ExpressionSet
+```{r}
+
+intersecting_proteins <- intersect(rownames(total_protein_quant), rownames(rbp_protein_quant))
+
+total_for_combination <- total_protein_quant[intersecting_proteins,]
+rbp_for_combination <- rbp_protein_quant[intersecting_proteins,]
+
+# make the column names for the two MSnSets unique
+colnames(total_for_combination) <- paste0(colnames(total_for_combination), "_Total")
+colnames(rbp_for_combination) <- paste0(colnames(rbp_for_combination), "_OOPS")
+
+# make the ExpressionSet
+combined_intensities <- ExpressionSet(cbind(exprs(total_for_combination), exprs(rbp_for_combination)))
+
+# Add the feature data
+fData(combined_intensities) <- fData(total_for_combination)
+
+# Add the phenotype data
+pData(combined_intensities) <- rbind(pData(total_for_combination), pData(rbp_for_combination))
+
+pData(combined_intensities)$Condition <- factor(pData(combined_intensities)$Condition, level=c("M","G1"))
+pData(combined_intensities)$Type <- factor(pData(combined_intensities)$Type, level=c("Total","OOPS"))
+
+dim(exprs(combined_intensities))
+print(head(data.frame(exprs(combined_intensities)), 2))
+print(head(fData(combined_intensities), 2))
+print(head(pData(combined_intensities), 2))
+```
+
+
+```{r}
+condition <- combined_intensities$Condition
+type <- combined_intensities$Type
+sample_name <- combined_intensities$Sample_name
+
+design <- model.matrix(~condition*type) 
+
+rna_binding_fit <- lmFit(combined_intensities, design)
+
+rna_binding_fit <- contrasts.fit(rna_binding_fit, coefficients="conditionG1:typeOOPS")
+rna_binding_fit <- eBayes(rna_binding_fit)
+
+rna_binding_p_value_status <- ifelse(rna_binding_fit$p.value[,'conditionG1:typeOOPS']<0.01, "sig", "not_sig")
+
+limma::plotMA(rna_binding_fit, status=rna_binding_p_value_status, values=c("sig", "not_sig"),
+              col=c(cbPalette[6], "black"), cex=c(0.5,0.1), main="")
+```
+Below, we summarise the number of signficant p-values (post BH FDR correction) using a 1% FDR threshold. The second table also demands that the point estimate for the fold change is > 2.
+```{r}
+summary(decideTests(rna_binding_fit, p.value=0.01, adjust.method="BH"))
+summary(decideTests(rna_binding_fit, p.value=0.01, adjust.method="BH", lfc=1))
+```
+
+```{r}
+all_rna_binding_results <- topTable(rna_binding_fit, coef = "conditionG1:typeOOPS", n = Inf, confint=TRUE)
+
+my_volcanoplot(all_rna_binding_results)
+```
+So again, lots of RNA binding changes!
+
+Now, let's compare the results from the two methods. To do this, we will merge together the results from the two methods.
+```{r}
+M_G1_simple_lm <- readRDS("../results/M_G1_changes_in_RNA_binding_linear_model.rds")
+
+compare_methods <- all_rna_binding_results %>%
+  dplyr::select("logFC", "AveExpr", "adj.P.Val", "P.Value") %>%
+  merge(M_G1_simple_lm, by.x="row.names", by.y="protein")
+```
+
+First, let's tabulate the proteins significant in each method
+```{r}
+lm_sig <- ifelse(compare_methods$lm_BH<0.01, "lm sig", "lm not sig")
+limma_sig <- ifelse(compare_methods$adj.P.Val<0.01, "limma sig", "limma not sig")
+
+print(table(lm_sig, limma_sig))
+
+compare_methods$sig_status <- interaction(lm_sig, limma_sig)
+```
+
+OK, so most proteins with significant change in RNA binding using `lm` or `limma` are significant in both, although `limma` does indicate more proteins have a significant change. Note that only 25/1916 proteins are significant by `lm` only.
+
+What about if we separate by the `lm` model used, e.g +/- tag
+```{r}
+fit <- compare_methods$fit
+print(table(lm_sig, limma_sig, fit))
+
+```
+OK, so `lm` and `limma` results are more similar if the `lm` model did not include the tag. This is no suprise since the `limma` fomula we used did not include the tag covariate so this is the closest comparison
+
+First, let's compare the p-values. Note that the p-values are usually lower in `limma`. The second plot shows the threshold for the maximum p-value which results in an estimated FDR < 1% for both methods. 
+```{r}
+max_p_sig_lm <- compare_methods %>% filter(lm_BH<0.01) %>% pull(lm_p_value) %>% max()
+max_p_sig_limma <- compare_methods %>% filter(adj.P.Val<0.01) %>% pull(P.Value) %>% max()
+
+p <- compare_methods %>%
+  ggplot(aes(log10(lm_p_value), log10(P.Value), colour=fit)) +
+  geom_point() +
+  scale_colour_manual(values=cbPalette) +
+  geom_abline(slope=1, linetype=2, colour=cbPalette[6]) +
+  xlab("lm") +
+  ylab("limma") 
+
+print(p)
+
+print(p +
+  geom_vline(xintercept=log10(max_p_sig_lm), linetype=2) +
+  geom_hline(yintercept=log10(max_p_sig_limma), linetype=2))
+```
+
+
+```{r, fig.height=10, fig.width=10}
+
+compare_methods %>%
+  mutate(binned_ave_exprs=cut2(AveExpr, g=10)) %>%
+  ggplot(aes(log10(lm_p_value), log10(P.Value), colour=fit)) +
+  geom_point() +
+  geom_abline(slope=1, linetype=2) +
+  #scale_colour_manual(values=cbPalette) +
+  xlab("lm") +
+  ylab("limma") +
+  facet_wrap(~binned_ave_exprs)
+
+```
+
+```{r, fig.height=10}
+
+compare_methods %>%
+  ggplot(aes(abs(logFC), fill=sig_status)) +
+  geom_histogram() +
+  facet_grid(sig_status~., scales="free") +
+  scale_fill_discrete(guide=FALSE) +
+  theme(strip.text=element_text(size=15))
+  
+  
+```
+
+Now, the fold change estimates. Note that the estimates for the fold change are not changed by the bayesian shrinkage of the coefficient standard errors.
+```{r}
+compare_methods %>% ggplot(aes(log10(lm_fold_change), log10(logFC))) +
+  geom_point(size=1, alpha=0.2) +
+  xlab("lm") +
+  ylab("limma") +
+  ggtitle("Estimated fold changes")
+```
+Finally, let's explore some of the proteins which were detected as having a significant change in RNA binding with only one method. Remember from above that the p-values for lm and limma are very well correlated so we're looking here at slight differences close to the 1% FDR thresholds. 
+
+
+```{r}
+# Function to plot the intensities values
+plotIntensities <- function(obj){
+  
+  p <- tidy(obj, addPheno=TRUE) %>%
+    ggplot(aes(Condition, value, colour=Type, group=Type)) +
+    geom_point() +
+    stat_summary(geom="line", fun.y=mean) +
+    facet_wrap(~gene, scales='free') +
+    ylab("Intensity (log2)")
+    
+  invisible(p)
+}
+
+
+print(plotIntensities(combined_intensities["A0AVT1",]))
+
+```
+Let's look at the proteins which are "lm only". We'll ignore those where we used the TMT in our lm model since this was not included in the limma model so that may be another reason for differences in the p-values.
+
+
+```{r}
+lm_only <- compare_methods %>% filter(sig_status=='lm sig.limma not sig', fit=="Without_tag") %>%
+  dplyr::select(Row.names, lm_fold_change, P.Value, adj.P.Val, lm_p_value, lm_BH, lm_std_error) %>% # select columns
+  arrange(desc(P.Value)) # arrange by limma p-value (descending order)
+
+print(lm_only)
+```
+
+Now let's plot these proteins. Notice that in all cases, the replicates are very tightly distributed.
+```{r, fig.height=10, fig.width=10}
+print(plotIntensities(combined_intensities[lm_only$Row.names,]))
+```
+In some cases, the intensity values are near identical (see below). While it's possible the biological variability for this protein is very low, it seems unlikely that the exact same amount of RNA-bound protein was recovered given the expected technical variability from the OOPS protocol and sample preparation. A much more likely explanation is that these intensity values are so similar simply by chance. This is the (reasonable) assumption by which `limma` alters the standard deviations for the coefficients using features with similar abundance. 
+
+```{r}
+# Heterogeneous nuclear ribonucleoprotein U-like protein 1
+# HNRNPUL1
+# Acts as a basic transcriptional regulator. Represses basic transcription driven by several virus and cellular promoters.
+# When associated with BRD7, activates transcription of glucocorticoid-responsive promoter in the absence of
+# ligand-stimulation. Plays also a role in mRNA processing and transport. Binds avidly to poly(G) and poly(C) RNA
+# homopolymers in vitro.
+
+tidy(combined_intensities, addPheno=TRUE) %>%
+  filter(gene=="Q9BUJ2", Type=="OOPS", Condition=="M") %>%
+  dplyr::select(Condition, Replicate, value)
+```
+
+Below, we explore the observed intensity values for some of the proteins which are significant according only to `limma`. Note that these have relatively large
+```{r, fig.height=10, fig.width=10}
+limma_only <- compare_methods %>% filter(sig_status=='lm not sig.limma sig', fit=="Without_tag") %>%
+  dplyr::select(Row.names, lm_fold_change, P.Value, adj.P.Val, lm_p_value, lm_BH, lm_std_error) %>%
+  arrange(desc(lm_p_value))
+
+print(head(limma_only))
+
+print(plotIntensities(combined_intensities[limma_only$Row.names[1:9],]))
+```
+
+Let's go back to that plot of mean vs sqrt and see how the proteins compare depending on whether they were detected as signficant in each method.
+
+As expected, those significant in just `lm` have relatively low observed std. dev. and those significant in just `limma` have relatively high std. dev.
+```{r}
+mean_sd_data <- tidy(total_protein_quant, addPheno=TRUE) %>%# "tidy" the object, e.g make it into a tidy data format --> long
+  group_by(protein, Condition) %>% # group by protein and condition
+  dplyr::summarise(mean=mean(value), sqrt_sd=sqrt(sd(value))) %>% # mean and stdev for each group
+  ungroup() %>%
+  merge(compare_methods, by.x="protein", by.y="Row.names") %>% # merge in the results from the two methods
+  filter(fit=="Without_tag") # Only keep those proteins fitted without the tag covariate in lm
+
+# remake the basic plot showing the relationship
+p_basic <- mean_sd_data %>%
+  ggplot(aes(mean, sqrt_sd)) + 
+  xlab("Mean intensity") +
+  ylab("Coefficient of variance\n(sd/mean)") +
+  xlim(0, NA) + ylim(0, NA) # include 0,0
+
+print(p_basic + geom_point(size=0.2, alpha=0.5) + geom_smooth(se=FALSE))
+
+p_density <- p_basic +
+  geom_density_2d(aes(colour=sig_status), alpha=0.5, size=0.5) + # density of points
+  scale_colour_manual(values=cbPalette[c(2:4,6)])# set colours
+
+print(p_density)
+
+```
+
+Finally, we can get `limma` to return the signficant changes using both p-value and log-fold change thresholds using the TREAT method (https://www.ncbi.nlm.nih.gov/pubmed/19176553). Note that this is not the same as thresholding on the p-value and the point estimate for the fold change as limma is actually testing the null hypothesis that the fold change is less than our specified threshold. To be explicit, let's check the difference
+```{r}
+sig_changes_p <- topTable(rna_binding_fit, coef = "conditionG1:typeOOPS", n = Inf, p.value=0.01, adjust.method="fdr", confint=0.95)
+sig_changes_p_logfc_point_estimate <- sig_changes_p[abs(sig_changes_p$logFC)>1,]
+cat(sprintf("%s proteins pass adjusted p-value threshold, of which %s pass the threshold on fold change point estimate\n", 
+            nrow(sig_changes_p), nrow(sig_changes_p_logfc_point_estimate)))
+
+
+rna_binding_fit_treat <- treat(rna_binding_fit,lfc=1,trend=TRUE) # Test null hypothesis than change is <2-fold 
+sig_changes_p_logfc <- topTreat(rna_binding_fit_treat, coef = "conditionG1:typeOOPS", n = Inf,
+                p.value=0.01, lfc=1, adjust.method="fdr", confint=0.95)
+cat(sprintf("%s proteins pass the combined adjusted p-value threshold + fold change > 2\n",  nrow(sig_changes_p_logfc)))
+```
+
+And below we reproduce our volcano plot including the 95% confidence interval and highlight those proteins which have < 1% FDR and an absolute fold change significantly greater than 2. Below, we can see that many of the proteins with a fold change (FC) point estimate > 2 have a 95% confidence interval that overlaps the dashed lines for >2-fold change. TREAT also takes the multiple testing into account so it's even more conservative than just using the 95% CI shown below.
+```{r, fig.height=6, fid.width=6}
+.tmp_df <- all_rna_binding_results
+.tmp_df$sig <- ifelse(.tmp_df$P.Value<=0.01, "<1% FDR", ">1% FDR") # add "sig" column
+.tmp_df$sig[rownames(.tmp_df) %in% rownames(sig_changes_p_logfc_point_estimate)] <- "<1% FDR. FC point estimate < 2"
+.tmp_df$sig[rownames(.tmp_df) %in% rownames(sig_changes_p_logfc)] <- "<1% FDR. TREAT FC < 2"
+.tmp_df$SE <- sqrt(rna_binding_fit$s2.post) * rna_binding_fit$stdev.unscaled[,1]
+
+p <- .tmp_df %>%
+  ggplot(aes(logFC, -log10(P.Value), colour=sig)) +
+  geom_point(size=1) +
+  scale_colour_manual(values=c(cbPalette[c(6,2,7)], "grey20"), name="") + # manually adjust colours
+  geom_vline(xintercept=1, linetype=2, colour="grey70") +
+  geom_vline(xintercept=-1, linetype=2, colour="grey70") +
+  theme(legend.position="top", legend.direction=2)
+  
+print(p)
+
+print(p + geom_errorbarh(aes(xmin=CI.L, xmax=CI.R)))
+```
+Of course, the threshold for the fold changes you would are interested in 
+
+
+Save out results objects for later notebooks
+```{r}
+saveRDS(all_rna_binding_results, "../results/limma_rna_binding_results.rds")
+
+saveRDS(rna_binding_fit_treat, "../results/limma_rna_binding_results_treat.rds")
+
+saveRDS(compare_methods, "../results/compare_methods_rna_binding_results.rds")
+```
+
+
+

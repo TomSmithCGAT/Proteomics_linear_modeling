@@ -1,0 +1,41 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This notebook is just designed to check you have all the required packages installed. If any cell fails due to the package note being available, uncomment the lines at the top of the cell and re-run to install the package
+
+```{r}
+#install.packages("Hmisc")
+library(Hmisc)
+```
+
+```{r}
+#install.packages("tidyverse")
+library(tidyverse)
+```
+
+```{r}
+#if (!requireNamespace("BiocManager", quietly = TRUE))
+#    install.packages("BiocManager")
+
+#BiocManager::install("limma")
+library(limma)
+```
+
+```{r}
+#if (!requireNamespace("BiocManager", quietly = TRUE))
+#    install.packages("BiocManager")
+
+#BiocManager::install("biobroom")
+library(biobroom)
+```
+
+```{r}
+#if (!requireNamespace("BiocManager", quietly = TRUE))
+#    install.packages("BiocManager")
+
+#BiocManager::install("MSnbase")
+library(MSnbase)
+```
+
