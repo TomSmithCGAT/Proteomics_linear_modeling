@@ -1,9 +1,14 @@
 ---
-title: "An example use of linear model"
+title: "An example use of linear modeling"
 output:
   pdf_document: default
   html_notebook: default
+header-includes:
+- \usepackage{xcolor}
+- \usepackage{framed}
 ---
+
+\colorlet{shadecolor}{lightgray!10} 
 
 ```{r, message=FALSE, warning=FALSE}
 # load packages
@@ -59,6 +64,12 @@ Below, we peform this linear modelling using the base R function `lm` and the fo
 fit <- total_data_for_lm %>% lm(formula=intensity~condition)
 summary(fit)
 ```
+\colorlet{shadecolor}{yellow!10} 
+\begin{shaded}
+Question: What does the Intercept represent? Is the estimate and/or p-value of interest to us?
+\end{shaded}
+
+\colorlet{shadecolor}{lightgray!10} 
 
 Note that the above linear model is exactly the same as a two-sided student's t-test (assuming equal variance; shown below) or a one way Analysis of Variance (ANOVA; not shown).
 ```{r}
@@ -107,11 +118,19 @@ combined_data_for_lm %>%
   facet_wrap(~type)
 ```
 
-As we can see above, there is a stronger increase in abundance between Control and Treated in the OOPS samples than in the Total samples. This could indicate an increase in RNA binding for this protein between Control and Treated. The question is, is the difference significant....
+As we can see above, there is a stronger increase in abundance between Control and Treated in the OOPS samples than in the Total samples. 
 
-We can do this very easily by modeling the protein abundance across both TMT plexes and looking for a significant interaction between the condition (Control/Treated) and the type (Total/OOPS). In essense, this is equivalent to estimating the difference between the gradients for the two lines above. The formula for this model is therefore `Intensity ~ condition + type + condition:type`, where `condition:type` is the only coefficient we are actually interested in.
+\colorlet{shadecolor}{yellow!10} 
+\begin{shaded}
+Question: How would you interpret the intentisy values for this protein
+\end{shaded}
 
-Below, we can see that the coefficient for the interaction term is estimated as 2 +/- 0.75 (p=0.03). Note that the `type` coefficient is also significant (-1.83 +/- 0.53) however this just tells us that the overal intensity of the protein was lower in the OOPS samples than the Total samples which is not interesting to us since such comparisons between the TMT plexes are not valid (however the term is required in the model to account for them!).
+\colorlet{shadecolor}{lightgray!10} 
+
+
+We can test for a significant change in RNA binding by modeling the protein abundance across both TMT plexes and looking for a significant interaction between the condition (Control/Treated) and the type (Total/OOPS). In essense, this is equivalent to estimating the difference between the gradients for the two lines above. The formula for this model is therefore `Intensity ~ condition + type + condition:type`, where the `condition:type` estimates the fold-change (in log2-space remember) for RNA binding
+
+Below, we can see that the coefficient for the interaction term is estimated as 2 +/- 0.75 (p=0.03). 
 ```{r}
 fit <- combined_data_for_lm %>%
   # note that one can also use the condition*type shorthand which expands to condition + type + condition:type
@@ -121,9 +140,17 @@ print(summary(fit))
 
 ```
 
+\colorlet{shadecolor}{yellow!10} 
+\begin{shaded}
+Question: What do the other coefficients represent and are we interested in the estimates and p-values?
+\end{shaded}
+\colorlet{shadecolor}{lightgray!10} 
+
 The last thing to consider is that we have actually quantified Total and OOPS from the exact same samples (Organic phase and Interface). Therefore, we can include the sample as a "blocking" factor. 
 
-With the toy data, the sample number is indicated by the tag number as we have used the same tag for the Total and OOPS quantification. Note that we are not trying to model any systemic differences in tag labelling efficiency here (the data should already have been e.g center median normalised). Rather, we are interested in accounting for relative difference in the distribution of protein abundances within each sample. E.g if a protein was by chance more abundant in the first Control sample we would expect the intensity of the protein to be higher in Total_Control_1 vs Total_Control_2 or Total_Control_3 and OOPS_Control_1 to be higher than OOPS_Control_2 or OOPS_Control_3.
+With the toy data, the sample number is indicated by the tag number as we have used the same tag for the Total and OOPS quantification. 
+
+Note that we are not trying to model any systemic differences in tag labelling efficiency here (the data should already have been e.g center median normalised). Rather, we are interested in accounting for relative difference in the distribution of protein abundances within each sample. E.g if a protein was by chance more abundant in the first Control sample we would expect the intensity of the protein to be higher in Total_Control_1 vs Total_Control_2 or Total_Control_3. Importantly, since the OOPS samples originate from the same starting material, we would also expect OOPS_Control_1 to be higher than OOPS_Control_2 or OOPS_Control_3.
 
 By and large, the more blocking factors in your experimental design, the easier it is to identify signficant effects for the biological factors of interest. For example, if possible, it's always better to pair the control/treated samples, especially if you expect the baseline (e.g Control) condition to be relatively variable.
 
@@ -183,7 +210,7 @@ testModels <- function(obj, coeff_of_interest="conditionTreated:typeOOPS"){
   fit_values <- c(round(coef(summary(chosen_fit))[coeff_of_interest,], 4),
                   round(summary(chosen_fit)$adj.r.squared, 4),
                   fit_name)
-  
+
   names(fit_values)[4:6] <- c("p_value", "adj_R_squared", "fit")
   
   return(fit_values)

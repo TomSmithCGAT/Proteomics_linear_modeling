@@ -39,3 +39,19 @@ library(biobroom)
 library(MSnbase)
 ```
 
+```{r}
+#if (!requireNamespace("BiocManager", quietly = TRUE))
+#    install.packages("BiocManager")
+
+#BiocManager::install("goseq")
+library(goseq)
+```
+
+```{r}
+#if (!requireNamespace("BiocManager", quietly = TRUE))
+#    install.packages("BiocManager")
+
+#BiocManager::install("GO.db")
+library(GO.db)
+```
+

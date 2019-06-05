@@ -3,8 +3,16 @@ title: "Identifying changes in RNA binding using a linear model"
 output:
   pdf_document: default
   html_notebook: default
+header-includes:
+- \usepackage{xcolor}
+- \usepackage{framed}
 ---
+
+
+\colorlet{shadecolor}{lightgray!10} 
+
 In this notebook, we will apply the linear model approach presented in (`1_simple_example`) to a real-life data set.
+
 
 ```{r, message=FALSE, warning=FALSE}
 # load packages
@@ -39,7 +47,13 @@ The feature data describes each feature, e.g peptide sequence, master protein ac
 
 The phenotype data describes the samples
 
-Let's take a look at our total protein quantification data. If we "print" the object, we get a summary including the processing steps performed. So, here we have 2761 features (proteins) quantified across 10 samples. The `varLabels` describe the "Condition", "Replicate" and "Type" for these samples. We'll take a look at these in more detail shortly. We can see that there were originall 20171 features which were combined into 18111 features using a user-defined function. This was the step at which peptides with the same sequence but different variable modifications were aggregated. Then, these 18111 features were combined into the 2761 features (peptide->protein aggregation). Finally, the data was center-median normalised and missing values with imputed with knn. 
+Let's take a look at our total protein quantification data. If we "print" the object, we get a summary including the processing steps performed. 
+
+Here we have 2761 features (proteins) quantified across 10 samples. 
+
+The `varLabels` describe the "Condition", "Replicate" and "Type" for these samples. We'll take a look at these in more detail shortly. 
+
+We can see that there were originall 20171 features which were combined into 18111 features using a user-defined function. This was the step at which peptides with the same sequence but different variable modifications were aggregated. Then, these 18111 features were combined into the 2761 features (peptide->protein aggregation). Finally, the data was center-median normalised and missing values with imputed with knn. 
 ```{r}
 print(total_protein_quant)
 ```
@@ -88,7 +102,7 @@ cat(sprintf("Out of a total of %s RBPs quantified,\nwe have total protein quanti
 ```
 
 
-Below, we convert the MSnSet into a "tidy" format `data.frame` using `tidy`
+Below, we convert the MSnSet into a "tidy" format `data.frame` using `biobroom::tidy()`
 ```{r}
 
 total_exprs <- total_protein_quant[intersecting_proteins,] %>% # subset to intersecting proteins
@@ -101,6 +115,13 @@ Top of the total protein expression `data.frame`. See how each intensity value n
 ```{r}
 print(head(total_exprs))
 ```
+\colorlet{shadecolor}{yellow!10} 
+\begin{shaded}
+Question: Why doesn't the MSnSet object store all the data in this long format?
+\end{shaded}
+
+\colorlet{shadecolor}{lightgray!10} 
+
 Now we do the same for the RBP quantification and then concatenate the two data frames together.
 ```{r}
 oops_exprs <- rbp_protein_quant[intersecting_proteins,] %>%
@@ -176,8 +197,8 @@ testModels <- function(obj, coeff_of_interest="conditionG1:typeOOPS"){
 combined_exprs %>% filter(protein == 'A0AVT1') %>% testModels()
 ```
 
-Below, we make a function to run the `testModels()` function on all proteins in turn using dplyr.
-```{r}
+Below, we make a function to run the `testModels()` function on all proteins in turn using dplyr. We will use the standard Benjamini-Hochberg method to adjust p-values for the multiple tests we have conducted.
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
 runLM <- function(obj, coeff_of_interest="conditionG1:typeOOPS"){
   results <- obj %>%
     group_by(protein) %>% # group the data frame by the unique protein values
@@ -203,27 +224,19 @@ plotP <- function(obj){
 plotP(M_G1)
 ``` 
 
+\colorlet{shadecolor}{yellow!10} 
+\begin{shaded}
+Questions:
 
-Below, we tabulate the results. We will use the standard Benjamini-Hochberg method to adjust p-values for the multiple tests we have conducted here (1916 proteins). 
+- How many times was each of the two model formulas (with/without tags) used?
 
-```{r}
-summariseSignificantChanges <- function(obj){
-  cat("Which fit was best?")
-  print(table(obj$fit))
-  
-  cat("\nHow many p-values < 0.01 per fit 'type'?")
-  print(table(obj$fit, obj$lm_p_value<0.01))
-  
-  cat("\nHow many significant changes in RNA binding (1% FDR)?")
-  print(table(ifelse(obj$lm_BH<0.01, "Sig.", "Not Sig."), ifelse(obj$lm_fold_change>0, "Up", "Down")))
-  
-  cat("\nHow many significant changes in RNA binding (10% FDR)?")
-  print(table(ifelse(obj$lm_BH<0.1, "Sig.", "Not Sig."), ifelse(obj$lm_fold_change>0, "Up", "Down")))
+- How many significant changes in RNA binding were detected (You'll need to settle on a suitable FDR threshold) ?
 
-}
+\end{shaded}
 
-summariseSignificantChanges(M_G1)
-```
+\colorlet{shadecolor}{lightgray!10} 
+
+
 So, we have detected a lot of proteins with a signficant change in RNA binding!!
 
 We can use volcano plots to take a look at the estimated fold changes and associated p-values

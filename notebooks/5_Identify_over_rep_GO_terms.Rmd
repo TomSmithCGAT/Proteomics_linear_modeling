@@ -1,0 +1,404 @@
+---
+title: "Identifying over-represented GO terms"
+header-includes:
+- \usepackage{xcolor}
+- \usepackage{framed}
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+\colorlet{shadecolor}{lightgray!10} 
+
+In this notebook we will identify the over-represented GO terms in the proteins previously identified as changing RNA binding. The steps in this analysis are:
+
+1. Model the relationship between differential RNA binding and an expected bias factor
+2. Identify all the over-represented GO terms
+3. Filter by FDR and degree of over-representation
+4. Plot
+5. Compare GO terms over-represented when using `limma` or `lm`
+
+For this analysis, we will need to source the GO.R script which contains some utility functions for dealing with GO terms.
+```{r, message=FALSE, warning=FALSE}
+source("./GO.R")
+library(tidyverse)
+library(goseq)
+library(Hmisc)
+library(limma)
+library(biobroom)
+
+# set up standardised plotting scheme
+theme_set(theme_bw(base_size = 20) +
+            theme(panel.grid.major=element_blank(),
+                  panel.grid.minor=element_blank(),
+                  aspect.ratio=1))
+
+cbPalette <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7", "#999999")
+```
+
+Below, we load the result for differential RNA binding testing from the previous notebooks
+```{r}
+rna_binding_fit <- readRDS("../results/limma_rna_binding_fit.rds")
+rna_binding_fit_treat <- treat(rna_binding_fit,lfc=log2(1.5))
+
+limma_rna_binding_changes <- topTreat(rna_binding_fit_treat, coef = "conditionG1:typeOOPS", number = Inf,
+                                      p.value=0.01, adjust.method="BH", confint=0.95)
+
+limma_rna_binding_changes <- limma_rna_binding_changes[limma_rna_binding_changes$logFC>0,]
+
+compare_methods <- readRDS("../results/compare_methods_rna_binding_results.rds")
+
+```
+
+To perform the differential RNA binding testing, we will use the R package `goseq`. This was orignally designed to account for length bias in RNA-Seq count-based differential expression testing but can be applied to any GO over-representation scenario where one expects there is a bias due to increased power to detect changes for some features. The basic idea is that the bias factor must have a monotonic relationship with the probability of a feature presenting as significantly changed. `goseq` estimates this relationship with a spline fit (we will see this later). `goseq` then takes this relationship into account when performing the GO over-representation testing. For more details about `goseq`, see here: https://genomebiology.biomedcentral.com/articles/10.1186/gb-2010-11-2-r14
+
+In our case, we have reason to suspect that proteins with higher intensity will be more likely to be identified as having significantly altered RNA binding since the variance will be smaller so we will have more power to detect differences.
+
+The `limma` output contains a "AveExpr" value for each protein which represents the mean intensity. This is precisely the bias factor we are after so we can use this directly.
+
+The first step is to make a probability weight function (PWF) linking the bias factor with the probabilty of significant difference using the `nullp` function. By default, the function expects a genome name and it will go and fetch the bias data. However, we can also just provide this data ourselves. Below, we obtain the PWF and `goseq` outputs plots to show how closely these fit the observed relationship.
+```{r}
+limma_sig_bool <- compare_methods$Row.names %in% rownames(limma_rna_binding_changes)
+names(limma_sig_bool) <- compare_methods$Row.names
+print(table(limma_sig_bool))
+
+lm_sig_bool <- (compare_methods$lm_BH < 0.01 & compare_methods$logFC>0)
+names(lm_sig_bool) <- compare_methods$Row.names
+print(table(lm_sig_bool))
+
+bias <- compare_methods$AveExpr
+ 
+limma_pwf <- nullp(limma_sig_bool, bias.data=bias, plot.fit=TRUE)
+lm_pwf <- nullp(lm_sig_bool, bias.data=bias, plot.fit=TRUE)
+```
+
+Note that the fit for the `limma` results isn't great. For some reason, `goseq` sometimes doesn't obtain a very good fit but at least it's going to account for the relationship to some extent. If the fit is really terrible, it's possible to perform the spline fitting manually and provide this to `goseq` but we won't go into that here.
+
+Now, we need those GO terms from the previous notebook
+```{r}
+sapiens.go.full <- readRDS("../results/h_sapiens_go_full.rds")
+head(sapiens.go.full)
+```
+
+And we're ready to run `goseq`. By default, `goseq` expects a `genome` and will obtain the GO terms automatically. However, if we provide our own to the `gene2cat` argument, it will use this instead. This also means we could use `goseq` to interrogate over-represented KEGG terms etc by simply providing them at this point. 
+```{r}
+limma_over_rep_go <- goseq(limma_pwf, gene2cat=sapiens.go.full)
+lm_over_rep_go <- goseq(lm_pwf, gene2cat=sapiens.go.full)
+```
+
+We need to adjust the p-values to account for multiple testing ()
+```{r}
+limma_over_rep_go$BH <- p.adjust(limma_over_rep_go$over_represented_pvalue, method="BH")
+lm_over_rep_go$BH <- p.adjust(lm_over_rep_go$over_represented_pvalue, method="BH")
+```
+
+
+\colorlet{shadecolor}{yellow!10} 
+\begin{shaded}
+Questions:
+
+- How many GO terms did we test for over-representation in the `limma` results?
+
+- How many would we expect to have a p-value < 0.05 by chance?
+
+- How many do?
+
+- What can you infer from this?
+
+\end{shaded}
+\colorlet{shadecolor}{lightgray!10} 
+
+
+We can filter the output to only include the GO terms which are over-represented at 1% FDR
+```{r}
+sig_terms <- limma_over_rep_go %>% filter(BH<0.01)
+print(dim(sig_terms))
+print(head(sig_terms, 10))
+```
+We would also like to know the effect size, e.g how over-represented are the terms. We could use the `numDEInCat` and `numInCat` columns and calculate the over-representation as (`numInCat`/Number of proteins observed) / (`numDEInCat`/ Number of proteins with change in RNA binding). However, this would not take account of the bias we known exists. 
+
+The function below estimates the effect size, taking into account the bias (using the PWF)
+```{r}
+# ------------------------------------------------------------------------------------------------------------
+# Function  : 'addAdjustedOverRep' A crude function to add an adjusted estimate of the over-representation of a term
+# Input 
+#           : obj = A data frame with the results from goseq. As generated by GetEnrichedGO
+#           : pwf = a PWF from goseq
+#           : gene2cat = A dataframe mapping features to categories
+# Output  : The input obj + a column with estimated adjusted over-representation for each term ($adj_over_rep)
+# ------------------------------------------------------------------------------------------------------------------------
+
+addAdjustedOverRep <- function(obj, pwf, gene2cat){
+  len_fore <- sum(pwf$DEgenes)
+  len_back <- length(pwf$DEgenes)
+
+  obj$adj_over_rep <- apply(obj[,c("numDEInCat", "numInCat", "category")], MARGIN=1, function(x){
+    term_features <- gene2cat[gene2cat[["GO.ID"]]==x[["category"]], "UNIPROTKB"]
+    term_weight <- mean(pwf[rownames(pwf) %in% term_features, "pwf"])
+    non_term_weight <- mean(pwf[!rownames(pwf) %in% term_features, "pwf"])
+    as.numeric(x[['numDEInCat']])/as.numeric(x[['numInCat']]) / (term_weight/non_term_weight) / (len_fore/len_back)})
+  
+  return(obj)
+}
+```
+
+Now we can filter by the estimated over-representation too
+```{r}
+limma_over_rep_go %>% filter(BH<0.01)  %>% 
+  addAdjustedOverRep(lm_pwf, sapiens.go.full) %>%
+  filter(adj_over_rep>2) %>%
+  head(10)
+
+lm_over_rep_go %>% filter(BH<0.01)  %>% 
+  addAdjustedOverRep(lm_pwf, sapiens.go.full) %>%
+  filter(adj_over_rep>2) %>%
+  head(10)
+
+```
+Note that many of the above GO terms are essentially redundant and are simply the same set of proteins with each of the GO terms up the heirachy being over-represented. We can perform a simplification by taking each over-represented GO term, considering all its offspring and removing it if any of the offspring terms are more significantly over-represented. 
+
+Below, I've wrapped this all up into a function so that we can pass a data.frame of significantly over-represented GO terms and it will remove the redundant terms.
+
+```{r}
+remove_redundant_GO_terms <- function(go_df){
+  all_observed_go <- unique(go_df$category) # identify all the GO terms
+  all_observed_go <- all_observed_go[!is.na(all_observed_go)] # Remove any NAs
+  
+  # Get the ontologies for the GO terms
+  ontologies <- AnnotationDbi::select(GO.db, all_observed_go, columns = c('ONTOLOGY'), keytype='GOID')
+  ontologies <- setNames(ontologies$ONTOLOGY, ontologies$GOID)
+  
+  # Get the mappings from GO term to parent GO terms using functions in GO.R
+  go2Offspring <- getAllMappings(all_observed_go, ontologies, verbose=FALSE, direction="offspring")
+  go2Ancesters <- getAllMappings(all_observed_go, ontologies, verbose=FALSE, direction="ancester")
+  
+  # start with all observed GO terms being retained
+  retained <- all_observed_go
+  
+  # We want to keep track of the GO IDs we have processed
+  processed <- NULL
+  
+  # If any GO term has no detected offspring or ancesters, mark them as already processed
+  # This will also mean they are always retained
+  no_anc_off <- setdiff(all_observed_go, union(names(go2Ancesters), names(go2Offspring)))
+  if(length(no_anc_off)>0){
+    cat(sprintf("No offspring or ancesters could be found for these terms: %s", no_anc_off))
+    processed <- no_anc_off
+  }
+  
+  # When all observed go terms are in processed, stop while loop
+  while(length(setdiff(all_observed_go, processed))!=0){
+    go_id <- setdiff(all_observed_go, processed)[1]
+    
+    # go_tree = the go term plus all ancesters and offspring also observed
+    go_tree <- union(go2Ancesters[[go_id]], go2Offspring[[go_id]]) %>%
+      intersect(all_observed_go) %>% c(go_id)
+    
+    top_go <- go_df %>%
+      filter(category %in% go_tree) %>% # subset to the terms in go_tree
+      arrange(over_represented_pvalue) %>% # order by p-value (ascending by default)
+      head(1) %>% # keep the top row
+      pull(category) # pull out the category
+    
+    # We want to remove all the terms in the tree except top_go
+    terms_to_remove <- setdiff(go_tree, top_go)
+    
+    processed <- union(processed, go_tree) # all terms in the tree are now considered "processed"
+
+    retained <- setdiff(retained, terms_to_remove) # remove the unwanted terms from retained
+  }
+  
+  go_df <- go_df %>% filter(category %in% retained) # subset to the retained terms
+  
+  return(go_df)
+}
+
+```
+
+\colorlet{shadecolor}{blue!10} 
+\begin{shaded}
+
+Task: Modify the \texttt{\detokenize{remove_redundant_GO_terms}} function to keep an arbitrary number of top GO terms within each sub tree of GO terms
+
+\end{shaded}
+\colorlet{shadecolor}{lightgray!10} 
+
+```{r}
+limma_over_rep_go %>% filter(BH<0.01)  %>% 
+  addAdjustedOverRep(limma_pwf, sapiens.go.full) %>%
+  filter(adj_over_rep>3) %>%
+  remove_redundant_GO_terms() %>%
+  head(10)
+```
+
+
+
+
+```{r}
+lm_over_rep_go %>% filter(BH<0.01)  %>% 
+  addAdjustedOverRep(lm_pwf, sapiens.go.full) %>%
+  filter(adj_over_rep>3) %>%
+  remove_redundant_GO_terms() %>%
+  head(10)
+```
+
+
+OK so now we're getting a more useful set of terms. The next thing we might want to do is some basic plot to show the result. Again, I've wrapped this up into a a function below so we can pass the GO dataframe straight through the above pipe and plot the results
+```{r}
+plotTerms <- function(go_df, 
+                      horizontal=FALSE, # make plot hoizontal
+                      plot_top=10,# plot the top n most significant GO terms
+                      shorten_term=FALSE){ # shorten the term to max 30 char
+  
+  # re-order data frame by p-value
+  if(horizontal){
+    go_df <- go_df %>% arrange(ontology, over_represented_pvalue)
+    go_df <- go_df %>% head(plot_top) # subset to top n most significant terms
+  }
+  else{
+    go_df <- go_df %>% arrange(desc(ontology), desc(over_represented_pvalue))
+    go_df <- go_df %>% tail(plot_top) # subset to top n most significant terms
+  }
+  
+  print(go_df)
+  
+  if(shorten_term){
+    go_df$term_for_plot <- substr(go_df$term, 1, 40) # cut at character 40
+  }
+  else{
+    go_df$term_for_plot <- go_df$term
+  }
+
+  # add the ontology (BP, MF, CC) to the end of the term
+  go_df$term_for_plot <- paste0(go_df$term_for_plot, " (", go_df$ontology, ")")
+  
+  # re-level factor make keep plotting order in order of dataframe (ontology, p-value)
+  go_df$term_for_plot <- factor(go_df$term_for_plot, levels=rev(go_df$term_for_plot))
+  
+  p <- go_df %>%
+    ggplot(aes(x=term_for_plot, y=log(adj_over_rep,2), fill=log(BH,10))) +
+    geom_bar(stat="identity") + # When geom_bar is plotting a single data point, need to set stat="identity"
+    xlab("") +
+    ylab("Adjusted\nOver-representation\n(Log2)") +
+    scale_fill_continuous(name="BH adj. p-value\n(Log 10)\n", low=cbPalette[5], high="grey30", limits=c(NA, -2)) +
+    theme(text=element_text(size=15),
+          plot.title=element_text(hjust=0.5))
+    
+  if(horizontal){
+    p <- p + coord_flip() # Flip the coordinates
+  }
+  else{
+    # If vertical bards, set the x-axis text at an angle so it fits better
+    p <- p + theme(axis.text.x=element_text(size=12, angle=30, vjust=1, hjust=1))
+  }
+  
+  return(list("p"=p, "data"=go_df))
+}
+```
+
+
+```{r, fig.height=7, fig.width=10}
+limma_over_rep_go %>% filter(BH<0.01)  %>% 
+  addAdjustedOverRep(limma_pwf, sapiens.go.full) %>%
+  filter(adj_over_rep>3) %>%
+  remove_redundant_GO_terms() %>%
+  plotTerms(horizontal=TRUE, shorten_term=TRUE, plot_top=20)
+```
+
+```{r, fig.height=7, fig.width=10}
+lm_over_rep_go %>% filter(BH<0.01)  %>% 
+  addAdjustedOverRep(lm_pwf, sapiens.go.full) %>%
+  filter(adj_over_rep>3) %>%
+  remove_redundant_GO_terms() %>%
+  plotTerms(horizontal=TRUE, shorten_term=TRUE, plot_top=20)
+```
+Ok, so now we have a reasonable list of over-represented GO terms and some pretty plots to show off our results...
+
+\colorlet{shadecolor}{blue!10} 
+\begin{shaded}
+
+Task: Modify the plotTerms function so that it makes a separate plot for each ontology
+
+\end{shaded}
+
+\colorlet{shadecolor}{lightgray!10} 
+
+One thing you may have noticed in the above is that the over-represented terms are slightly different for `lm` and `limma` above. For example, "aminoacyl-tRNA ligase activity" is the most significantly overrepresented MF GO term in the `lm` proteins but not present in the `limma` over-rep. GO terms.
+
+Below, we take the GO terms over-rep with `lm` (1% FDR, >4-fold over-rep.) and inspect them with our `limma` GO over-rep analysis. Note that very few of the proteins annotated with "aminoacyl-tRNA ligase activity" are detected as having a significant change in RNA binding according to `limma` - 3/24 vs 21/24 for `lm`!!
+```{r, message=FALSE, warning=FALSE}
+
+lm_over_rep_go_sig <- lm_over_rep_go %>% filter(BH<0.01)  %>% 
+  addAdjustedOverRep(lm_pwf, sapiens.go.full) %>%
+  filter(adj_over_rep>4) %>%
+  remove_redundant_GO_terms() %>%
+  pull(category)
+  
+limma_over_rep_go %>% filter(category %in% lm_over_rep_go_sig) %>%
+  addAdjustedOverRep(lm_pwf, sapiens.go.full)  %>%
+  head(10)
+```
+
+We want to take a look at the intensity values, so let's make that `plotIntensities()` function again
+```{r}
+combined_intensities <- readRDS("../results/combined_intensities.rds")
+
+plotIntensities <- function(obj){
+  
+  p <- tidy(obj, addPheno=TRUE) %>%
+    ggplot(aes(Condition, value, colour=Type, group=Type)) +
+    geom_point() +
+    stat_summary(geom="line", fun.y=mean) +
+    facet_wrap(~gene, scales='free') +
+    ylab("Intensity (log2)")
+    
+  invisible(p)
+}
+```
+
+If we take a look at the intensity values for these 24 proteins, most do seem to have a clear increase in RNA binding (the two that don't are both mitochondrial). So, why does `limma` only detect 3/24 of these as increasing RNA binding...
+```{r, fig.height=10, fig.width=10}
+tRNA_ligases <- sapiens.go.full %>% filter(GO.ID=="GO:0004812") %>% pull(UNIPROTKB)
+combined_intensities[intersect(rownames(combined_intensities), tRNA_ligases),] %>% plotIntensities() %>% print()
+```
+
+Next, we compare the p-values again. Note that all but two tRNA-ligases (the Mt ones) are in the bottom left quadrant (e.g <1% with both `lm` and `limma`).
+```{r}
+
+max_p_sig_lm <- compare_methods %>% filter(lm_BH<0.01) %>% pull(lm_p_value) %>% max()
+max_p_sig_limma <- compare_methods %>% filter(adj.P.Val<0.01) %>% pull(P.Value) %>% max()
+
+compare_methods %>% 
+  mutate(tRNA_ligase=Row.names %in% tRNA_ligases) %>%
+  arrange(tRNA_ligase) %>%
+  ggplot(aes(x=log10(lm_p_value), y=log10(P.Value), colour=tRNA_ligase)) +
+  geom_point() +
+  scale_colour_manual(values=c("grey40", cbPalette[6])) + 
+  geom_vline(xintercept=log10(max_p_sig_lm), linetype=2, colour="grey70") +
+  geom_hline(yintercept=log10(max_p_sig_limma), linetype=2,colour="grey70")
+```
+Finally, we look at the estimated fold change. Note that most of the fold change estimates are relatively low (~1.5 - 2-fold). So these proteins aren't identified by `limma` because we've used a more conservative approach and also thresholded on the confidence interval for the estimated fold change. This demonstrates one of the downsides of applying such thresholds since these proteins were subsequently shown to have a consistent (if still slight) change in RNA binding in a Thymidine + Nocadazole experiment suggesting this is probably a real change in RNA binding. So, while a threshold on the log fold change is a sensible approach, be careful about what threshold you use!
+```{r}
+compare_methods %>% 
+  mutate(tRNA_ligase=Row.names %in% tRNA_ligases) %>%
+  arrange(tRNA_ligase) %>%
+  ggplot(aes(logFC, -log10(P.Value), colour=tRNA_ligase)) +
+  geom_point(size=1) +
+  scale_colour_manual(values=c("grey40", cbPalette[6])) + 
+  geom_vline(xintercept=1, linetype=2, colour="grey70") +
+  geom_vline(xintercept=-1, linetype=2, colour="grey70") +
+  theme(legend.position="top", legend.direction=2)
+```
+
+And that's the end of the workshop!
+
+\colorlet{shadecolor}{blue!10} 
+\begin{shaded}
+
+Task: Repeat the above analysis but for proteins with a decrease in RNA binding with either `lm` or `limma`. How would you interpret this set of GO terms?
+
+\end{shaded}
+
+\colorlet{shadecolor}{lightgray!10} 
+
+

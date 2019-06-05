@@ -1,0 +1,111 @@
+---
+title: "Expanding GO annotations to include ancestors"
+output:
+  pdf_document: default
+  html_notebook: default
+header-includes:
+- \usepackage{xcolor}
+- \usepackage{framed}
+---
+
+\colorlet{shadecolor}{lightgray!10} 
+
+Gene ontology (GO) terms are heirachical: http://geneontology.org/docs/ontology-relations/
+
+For this reason, when analysing the over-represented GO terms, it's neccessary to consider all the GO terms for a feature, not just those which are directly annotated to the feature.
+
+To date, all GO over-representation tools I've used fail to consider the ancestor terms unless you provide them. As a motivating example, tRNA binding proteins are not always annotated separately as both "tRNA-binding" and "RNA-binding". For Uniprot, they will only have both annotations if they are annotated as RNA binding via a difference source than their tRNA binding annotation. To see this for yourself, take proteins from below and note the difference in the annotations recorded in Uniprot for those with both ("TRUE") or just tRNA binding annotation ("FALSE")
+
+In this notebook, we take a dataframe with GO annotations and expand all GO terms to include the ancestors too using the `getAllGOTerms` function from our `CamProt_R/GO.R` script. For some species this may take a long time - It takes ~ 20 minutes for the ~20,000 _H.sapiens_ proteins. Hence output is saved in the `../results` directory. 
+```{r, message=FALSE, warning=FALSE}
+suppressMessages(library(dplyr))
+suppressMessages(library(tidyverse))
+suppressMessages(library(biobroom))
+suppressMessages(library(UniProt.ws))
+source("./GO.R")
+```
+This file lists all the human Swiss-Prot proteins. We could also parse this information from the fasta database we searched against.
+```{r}
+human_protein_ids <- read.delim("../raw/human_protein_ids_plus_gene_names.tsv")
+print(head(human_protein_ids))
+```
+
+Get the Uniprot interface object and save
+```{r, eval=FALSE}
+humanup <- UniProt.ws(taxId=9606) # H.sapiens
+saveRDS(humanup, '../results/h_sapiens_uniprot_annotations.rds')
+```
+
+Load the interface object
+```{r}
+humanup <- readRDS('../results/h_sapiens_uniprot_annotations.rds')
+print(humanup)
+```
+
+Get all GO terms for the proteins of interest
+```{r, eval=FALSE, message=FALSE, warning=FALSE}
+sapiens.annot <- AnnotationDbi::select(
+  humanup,
+  keys = human_protein_ids$Entry, 
+  columns = c("GO-ID", "INTERPRO", "PROTEIN-NAMES"),
+  keystyle = "UNIPROTKB")
+
+saveRDS(sapiens.annot, '../results/h_sapiens_annotations.rds')
+
+```
+
+
+Reformat the dataframe so that each row contains a single GO ID for a single protein
+```{r}
+sapiens.annot <- readRDS('../results/h_sapiens_annotations.rds')
+
+sapiens.go <-  sapiens.annot %>%
+  data.frame() %>%
+  separate_rows(GO.ID, sep="; ") %>%
+  dplyr::select(UNIPROTKB, PROTEIN.NAMES, GO.ID)
+```
+
+
+For each "tRNA binding" protein, indicate whether it is also directly annotated as "RNA binding". Note they they are all indirectly annotated since tRNA binding is a child term of RNA binding: https://www.ebi.ac.uk/QuickGO/term/GO:0000049
+
+
+```{r}
+RBP_GO_TERM <- "GO:0003723" 
+TRNA_BINDING_GO_TERM <- "GO:0000049"
+
+RBPs <- sapiens.go %>% filter (GO.ID==RBP_GO_TERM) %>% pull(UNIPROTKB)
+TRNA_BPs <- sapiens.go %>% filter (GO.ID==TRNA_BINDING_GO_TERM) %>% pull(UNIPROTKB)
+
+print(sapply(TRNA_BPs, FUN=function(x) x %in% RBPs))
+```
+
+\colorlet{shadecolor}{yellow!10} 
+\begin{shaded}
+Question: Why wouldn't every protein/gene be directly annotated with all terms up the hierarchy? 
+\end{shaded}
+
+\colorlet{shadecolor}{lightgray!10} 
+
+Below we demonstrate how the `getAllGOTerms()` function expands the directly annotated terms (only 2) to all the ancester terms (176 in total!) for a single protein
+```{r}
+go.single <- sapiens.go %>% filter(UNIPROTKB=='Q86V81')
+sapiens.go.single <- getAllGOTerms(go.single, verbose=FALSE)
+print(dim(sapiens.go.single))
+```
+
+Then we apply this function to our full set of GO terms across all proteins of interest and save out for use in later notebooks
+```{r, eval=FALSE}
+sapiens.go.full <- getAllGOTerms(sapiens.go, verbose=FALSE)
+saveRDS(sapiens.go.full, "../results/h_sapiens_go_full.rds")
+```
+
+
+Note all tRNA binding proteins are now also directly annotated as RNA binding proteins too
+```{r}
+sapiens.go.full <- readRDS("../results/h_sapiens_go_full.rds")
+
+RBPs <- sapiens.go.full %>% filter (GO.ID==RBP_GO_TERM) %>% pull(UNIPROTKB)
+TRNA_BPs <- sapiens.go.full %>% filter (GO.ID==TRNA_BINDING_GO_TERM) %>% pull(UNIPROTKB)
+
+print(table(sapply(TRNA_BPs, FUN=function(x) x %in% RBPs)))
+```
