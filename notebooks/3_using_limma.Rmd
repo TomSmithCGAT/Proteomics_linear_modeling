@@ -85,9 +85,11 @@ tidy(total_protein_quant, addPheno=TRUE) %>%# "tidy" the object, e.g make it int
 Below we run limma to idenify the proteins with a significant change in abundance between conditions
 ```{r}
 total_fit_lm <- lmFit(exprs(total_protein_quant), design) # fit model to each protein
-total_fit_lm_e <- eBayes(total_fit_lm) # shrink std errors to abundance vs. stdev trend
+total_fit_lm_c <- contrasts.fit(total_fit_lm, coefficients=c("conditionM")) # extract results for coefficient of interest
 
-total_fit_lm_e_c <- contrasts.fit(total_fit_lm_e, coefficients=c("conditionM")) # extract results for coefficient of interest
+total_fit_lm_e_c <- eBayes(total_fit_lm_c) # shrink std errors to abundance vs. stdev trend
+
+
 
 p_value_status <- ifelse(total_fit_lm_e_c$p.value[,'conditionM']<0.01, "sig", "not_sig") # identify significant changes
 

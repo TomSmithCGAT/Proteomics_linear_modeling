@@ -240,35 +240,17 @@ $(document).ready(function () {
 
 <!-- rnb-text-begin -->
 
-<p>This notebook is just designed to check you have all the required packages installed. If any cell fails due to the package note being available, uncomment the lines at the top of the cell and re-run to install the package</p>
+<p>This notebook is just designed to check you have all the required packages installed. If any line fails due to the package note being available, uncomment the lines at the top of the cell and re-run to install the packages required</p>
 <!-- rnb-text-end -->
 
 
 <!-- rnb-chunk-begin -->
 
 
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuI2luc3RhbGwucGFja2FnZXMoXCJIbWlzY1wiKVxubGlicmFyeShIbWlzYylcbmBgYCJ9 -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuI2luc3RhbGwucGFja2FnZXMoYyhcIkhtaXNjXCIsIFwidGlkeXZlcnNlXCIpKVxubGlicmFyeShIbWlzYylcbmxpYnJhcnkodGlkeXZlcnNlKVxuYGBgIn0= -->
 
-<pre class="r"><code>#install.packages(&quot;Hmisc&quot;)
-library(Hmisc)</code></pre>
-<!-- rnb-source-end -->
-
-<!-- rnb-chunk-end -->
-
-
-<!-- rnb-text-begin -->
-
-
-
-<!-- rnb-text-end -->
-
-
-<!-- rnb-chunk-begin -->
-
-
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuI2luc3RhbGwucGFja2FnZXMoXCJ0aWR5dmVyc2VcIilcbmxpYnJhcnkodGlkeXZlcnNlKVxuYGBgIn0= -->
-
-<pre class="r"><code>#install.packages(&quot;tidyverse&quot;)
+<pre class="r"><code>#install.packages(c(&quot;Hmisc&quot;, &quot;tidyverse&quot;))
+library(Hmisc)
 library(tidyverse)</code></pre>
 <!-- rnb-source-end -->
 
@@ -285,13 +267,19 @@ library(tidyverse)</code></pre>
 <!-- rnb-chunk-begin -->
 
 
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuI2lmICghcmVxdWlyZU5hbWVzcGFjZShcIkJpb2NNYW5hZ2VyXCIsIHF1aWV0bHkgPSBUUlVFKSlcbiMgICAgaW5zdGFsbC5wYWNrYWdlcyhcIkJpb2NNYW5hZ2VyXCIpXG5cbiNCaW9jTWFuYWdlcjo6aW5zdGFsbChcImxpbW1hXCIpXG5saWJyYXJ5KGxpbW1hKVxuYGBgIn0= -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuI2lmICghcmVxdWlyZU5hbWVzcGFjZShcIkJpb2NNYW5hZ2VyXCIsIHF1aWV0bHkgPSBUUlVFKSlcbiMgICAgaW5zdGFsbC5wYWNrYWdlcyhcIkJpb2NNYW5hZ2VyXCIpXG5cbiNCaW9jTWFuYWdlcjo6aW5zdGFsbChjKFwiYmlvYnJvb21cIiwgXCJNU25iYXNlXCIsIFwiZ29zZXFcIiwgXCJHTy5kYlwiLCBcIlVuaVByb3Qud3NcIiwgXCJsaW1tYVwiKSlcblxubGlicmFyeShsaW1tYSlcbmxpYnJhcnkoYmlvYnJvb20pXG5saWJyYXJ5KE1TbmJhc2UpXG5saWJyYXJ5KGdvc2VxKVxubGlicmFyeShHTy5kYilcbmxpYnJhcnkoVW5pUHJvdC53cylcbmBgYCJ9 -->
 
 <pre class="r"><code>#if (!requireNamespace(&quot;BiocManager&quot;, quietly = TRUE))
 #    install.packages(&quot;BiocManager&quot;)
 
-#BiocManager::install(&quot;limma&quot;)
-library(limma)</code></pre>
+#BiocManager::install(c(&quot;biobroom&quot;, &quot;MSnbase&quot;, &quot;goseq&quot;, &quot;GO.db&quot;, &quot;UniProt.ws&quot;, &quot;limma&quot;))
+
+library(limma)
+library(biobroom)
+library(MSnbase)
+library(goseq)
+library(GO.db)
+library(UniProt.ws)</code></pre>
 <!-- rnb-source-end -->
 
 <!-- rnb-chunk-end -->
@@ -303,95 +291,7 @@ library(limma)</code></pre>
 
 <!-- rnb-text-end -->
 
-
-<!-- rnb-chunk-begin -->
-
-
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuI2lmICghcmVxdWlyZU5hbWVzcGFjZShcIkJpb2NNYW5hZ2VyXCIsIHF1aWV0bHkgPSBUUlVFKSlcbiMgICAgaW5zdGFsbC5wYWNrYWdlcyhcIkJpb2NNYW5hZ2VyXCIpXG5cbiNCaW9jTWFuYWdlcjo6aW5zdGFsbChcImJpb2Jyb29tXCIpXG5saWJyYXJ5KGJpb2Jyb29tKVxuYGBgIn0= -->
-
-<pre class="r"><code>#if (!requireNamespace(&quot;BiocManager&quot;, quietly = TRUE))
-#    install.packages(&quot;BiocManager&quot;)
-
-#BiocManager::install(&quot;biobroom&quot;)
-library(biobroom)</code></pre>
-<!-- rnb-source-end -->
-
-<!-- rnb-chunk-end -->
-
-
-<!-- rnb-text-begin -->
-
-
-
-<!-- rnb-text-end -->
-
-
-<!-- rnb-chunk-begin -->
-
-
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuI2lmICghcmVxdWlyZU5hbWVzcGFjZShcIkJpb2NNYW5hZ2VyXCIsIHF1aWV0bHkgPSBUUlVFKSlcbiMgICAgaW5zdGFsbC5wYWNrYWdlcyhcIkJpb2NNYW5hZ2VyXCIpXG5cbiNCaW9jTWFuYWdlcjo6aW5zdGFsbChcIk1TbmJhc2VcIilcbmxpYnJhcnkoTVNuYmFzZSlcbmBgYCJ9 -->
-
-<pre class="r"><code>#if (!requireNamespace(&quot;BiocManager&quot;, quietly = TRUE))
-#    install.packages(&quot;BiocManager&quot;)
-
-#BiocManager::install(&quot;MSnbase&quot;)
-library(MSnbase)</code></pre>
-<!-- rnb-source-end -->
-
-<!-- rnb-chunk-end -->
-
-
-<!-- rnb-text-begin -->
-
-
-
-<!-- rnb-text-end -->
-
-
-<!-- rnb-chunk-begin -->
-
-
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuI2lmICghcmVxdWlyZU5hbWVzcGFjZShcIkJpb2NNYW5hZ2VyXCIsIHF1aWV0bHkgPSBUUlVFKSlcbiMgICAgaW5zdGFsbC5wYWNrYWdlcyhcIkJpb2NNYW5hZ2VyXCIpXG5cbiNCaW9jTWFuYWdlcjo6aW5zdGFsbChcImdvc2VxXCIpXG5saWJyYXJ5KGdvc2VxKVxuYGBgIn0= -->
-
-<pre class="r"><code>#if (!requireNamespace(&quot;BiocManager&quot;, quietly = TRUE))
-#    install.packages(&quot;BiocManager&quot;)
-
-#BiocManager::install(&quot;goseq&quot;)
-library(goseq)</code></pre>
-<!-- rnb-source-end -->
-
-<!-- rnb-chunk-end -->
-
-
-<!-- rnb-text-begin -->
-
-
-
-<!-- rnb-text-end -->
-
-
-<!-- rnb-chunk-begin -->
-
-
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuI2lmICghcmVxdWlyZU5hbWVzcGFjZShcIkJpb2NNYW5hZ2VyXCIsIHF1aWV0bHkgPSBUUlVFKSlcbiMgICAgaW5zdGFsbC5wYWNrYWdlcyhcIkJpb2NNYW5hZ2VyXCIpXG5cbiNCaW9jTWFuYWdlcjo6aW5zdGFsbChcIkdPLmRiXCIpXG5saWJyYXJ5KEdPLmRiKVxuYGBgIn0= -->
-
-<pre class="r"><code>#if (!requireNamespace(&quot;BiocManager&quot;, quietly = TRUE))
-#    install.packages(&quot;BiocManager&quot;)
-
-#BiocManager::install(&quot;GO.db&quot;)
-library(GO.db)</code></pre>
-<!-- rnb-source-end -->
-
-<!-- rnb-chunk-end -->
-
-
-<!-- rnb-text-begin -->
-
-
-
-<!-- rnb-text-end -->
-
-<div id="rmd-source-code">LS0tCnRpdGxlOiAiUiBOb3RlYm9vayIKb3V0cHV0OiBodG1sX25vdGVib29rCi0tLQoKVGhpcyBub3RlYm9vayBpcyBqdXN0IGRlc2lnbmVkIHRvIGNoZWNrIHlvdSBoYXZlIGFsbCB0aGUgcmVxdWlyZWQgcGFja2FnZXMgaW5zdGFsbGVkLiBJZiBhbnkgY2VsbCBmYWlscyBkdWUgdG8gdGhlIHBhY2thZ2Ugbm90ZSBiZWluZyBhdmFpbGFibGUsIHVuY29tbWVudCB0aGUgbGluZXMgYXQgdGhlIHRvcCBvZiB0aGUgY2VsbCBhbmQgcmUtcnVuIHRvIGluc3RhbGwgdGhlIHBhY2thZ2UKCmBgYHtyfQojaW5zdGFsbC5wYWNrYWdlcygiSG1pc2MiKQpsaWJyYXJ5KEhtaXNjKQpgYGAKCmBgYHtyfQojaW5zdGFsbC5wYWNrYWdlcygidGlkeXZlcnNlIikKbGlicmFyeSh0aWR5dmVyc2UpCmBgYAoKYGBge3J9CiNpZiAoIXJlcXVpcmVOYW1lc3BhY2UoIkJpb2NNYW5hZ2VyIiwgcXVpZXRseSA9IFRSVUUpKQojICAgIGluc3RhbGwucGFja2FnZXMoIkJpb2NNYW5hZ2VyIikKCiNCaW9jTWFuYWdlcjo6aW5zdGFsbCgibGltbWEiKQpsaWJyYXJ5KGxpbW1hKQpgYGAKCmBgYHtyfQojaWYgKCFyZXF1aXJlTmFtZXNwYWNlKCJCaW9jTWFuYWdlciIsIHF1aWV0bHkgPSBUUlVFKSkKIyAgICBpbnN0YWxsLnBhY2thZ2VzKCJCaW9jTWFuYWdlciIpCgojQmlvY01hbmFnZXI6Omluc3RhbGwoImJpb2Jyb29tIikKbGlicmFyeShiaW9icm9vbSkKYGBgCgpgYGB7cn0KI2lmICghcmVxdWlyZU5hbWVzcGFjZSgiQmlvY01hbmFnZXIiLCBxdWlldGx5ID0gVFJVRSkpCiMgICAgaW5zdGFsbC5wYWNrYWdlcygiQmlvY01hbmFnZXIiKQoKI0Jpb2NNYW5hZ2VyOjppbnN0YWxsKCJNU25iYXNlIikKbGlicmFyeShNU25iYXNlKQpgYGAKCmBgYHtyfQojaWYgKCFyZXF1aXJlTmFtZXNwYWNlKCJCaW9jTWFuYWdlciIsIHF1aWV0bHkgPSBUUlVFKSkKIyAgICBpbnN0YWxsLnBhY2thZ2VzKCJCaW9jTWFuYWdlciIpCgojQmlvY01hbmFnZXI6Omluc3RhbGwoImdvc2VxIikKbGlicmFyeShnb3NlcSkKYGBgCgpgYGB7cn0KI2lmICghcmVxdWlyZU5hbWVzcGFjZSgiQmlvY01hbmFnZXIiLCBxdWlldGx5ID0gVFJVRSkpCiMgICAgaW5zdGFsbC5wYWNrYWdlcygiQmlvY01hbmFnZXIiKQoKI0Jpb2NNYW5hZ2VyOjppbnN0YWxsKCJHTy5kYiIpCmxpYnJhcnkoR08uZGIpCmBgYAoK</div>
+<div id="rmd-source-code">LS0tCnRpdGxlOiAiUiBOb3RlYm9vayIKb3V0cHV0OiBodG1sX25vdGVib29rCi0tLQoKVGhpcyBub3RlYm9vayBpcyBqdXN0IGRlc2lnbmVkIHRvIGNoZWNrIHlvdSBoYXZlIGFsbCB0aGUgcmVxdWlyZWQgcGFja2FnZXMgaW5zdGFsbGVkLiBJZiBhbnkgbGluZSBmYWlscyBkdWUgdG8gdGhlIHBhY2thZ2Ugbm90ZSBiZWluZyBhdmFpbGFibGUsIHVuY29tbWVudCB0aGUgbGluZXMgYXQgdGhlIHRvcCBvZiB0aGUgY2VsbCBhbmQgcmUtcnVuIHRvIGluc3RhbGwgdGhlIHBhY2thZ2VzIHJlcXVpcmVkCgpgYGB7cn0KI2luc3RhbGwucGFja2FnZXMoYygiSG1pc2MiLCAidGlkeXZlcnNlIikpCmxpYnJhcnkoSG1pc2MpCmxpYnJhcnkodGlkeXZlcnNlKQpgYGAKCmBgYHtyfQojaWYgKCFyZXF1aXJlTmFtZXNwYWNlKCJCaW9jTWFuYWdlciIsIHF1aWV0bHkgPSBUUlVFKSkKIyAgICBpbnN0YWxsLnBhY2thZ2VzKCJCaW9jTWFuYWdlciIpCgojQmlvY01hbmFnZXI6Omluc3RhbGwoYygiYmlvYnJvb20iLCAiTVNuYmFzZSIsICJnb3NlcSIsICJHTy5kYiIsICJVbmlQcm90LndzIiwgImxpbW1hIikpCgpsaWJyYXJ5KGxpbW1hKQpsaWJyYXJ5KGJpb2Jyb29tKQpsaWJyYXJ5KE1TbmJhc2UpCmxpYnJhcnkoZ29zZXEpCmxpYnJhcnkoR08uZGIpCmxpYnJhcnkoVW5pUHJvdC53cykKYGBgCgo=</div>
 
 
 
