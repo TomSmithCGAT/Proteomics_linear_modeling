@@ -247,12 +247,45 @@ $(document).ready(function () {
 <!-- rnb-chunk-begin -->
 
 
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuI2luc3RhbGwucGFja2FnZXMoYyhcIkhtaXNjXCIsIFwidGlkeXZlcnNlXCIpKVxubGlicmFyeShIbWlzYylcbmxpYnJhcnkodGlkeXZlcnNlKVxuYGBgIn0= -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuI2luc3RhbGwucGFja2FnZXMoYyhcIkhtaXNjXCIsIFwidGlkeXZlcnNlXCIpKVxubGlicmFyeShIbWlzYylcbmBgYCJ9 -->
 
 <pre class="r"><code>#install.packages(c(&quot;Hmisc&quot;, &quot;tidyverse&quot;))
-library(Hmisc)
-library(tidyverse)</code></pre>
+library(Hmisc)</code></pre>
 <!-- rnb-source-end -->
+
+<!-- rnb-output-begin eyJkYXRhIjoiTG9hZGluZyByZXF1aXJlZCBwYWNrYWdlOiBsYXR0aWNlXG5Mb2FkaW5nIHJlcXVpcmVkIHBhY2thZ2U6IHN1cnZpdmFsXG5Mb2FkaW5nIHJlcXVpcmVkIHBhY2thZ2U6IEZvcm11bGFcbkxvYWRpbmcgcmVxdWlyZWQgcGFja2FnZTogZ2dwbG90MlxuTmVlZCBoZWxwIGdldHRpbmcgc3RhcnRlZD8gVHJ5IHRoZSBjb29rYm9vayBmb3IgUjogaHR0cDovL3d3dy5jb29rYm9vay1yLmNvbS9HcmFwaHMvXG5cbkF0dGFjaGluZyBwYWNrYWdlOiDigJhIbWlzY+KAmVxuXG5UaGUgZm9sbG93aW5nIG9iamVjdHMgYXJlIG1hc2tlZCBmcm9tIOKAmHBhY2thZ2U6YmFzZeKAmTpcblxuICAgIGZvcm1hdC5wdmFsLCB1bml0c1xuIn0= -->
+
+<pre><code>Loading required package: lattice
+Loading required package: survival
+Loading required package: Formula
+Loading required package: ggplot2
+Need help getting started? Try the cookbook for R: http://www.cookbook-r.com/Graphs/
+
+Attaching package: ‘Hmisc’
+
+The following objects are masked from ‘package:base’:
+
+    format.pval, units</code></pre>
+<!-- rnb-output-end -->
+
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeSh0aWR5dmVyc2UpXG5gYGAifQ== -->
+
+<pre class="r"><code>library(tidyverse)</code></pre>
+<!-- rnb-source-end -->
+
+<!-- rnb-output-begin eyJkYXRhIjoiXHUwMDFiWzMwbeKUgOKUgCBcdTAwMWJbMW1BdHRhY2hpbmcgcGFja2FnZXNcdTAwMWJbMjJtIOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgCB0aWR5dmVyc2UgMS4yLjEg4pSA4pSAXHUwMDFiWzM5bVxuXHUwMDFiWzMwbVx1MDAxYlszMm3inJRcdTAwMWJbMzBtIFx1MDAxYlszNG10aWJibGUgXHUwMDFiWzMwbSAyLjAuMCAgICAgXHUwMDFiWzMybeKclFx1MDAxYlszMG0gXHUwMDFiWzM0bXB1cnJyICBcdTAwMWJbMzBtIDAuMi41XG5cdTAwMWJbMzJt4pyUXHUwMDFiWzMwbSBcdTAwMWJbMzRtdGlkeXIgIFx1MDAxYlszMG0gMC44LjIgICAgIFx1MDAxYlszMm3inJRcdTAwMWJbMzBtIFx1MDAxYlszNG1kcGx5ciAgXHUwMDFiWzMwbSAwLjcuOFxuXHUwMDFiWzMybeKclFx1MDAxYlszMG0gXHUwMDFiWzM0bXJlYWRyICBcdTAwMWJbMzBtIDEuMy4xICAgICBcdTAwMWJbMzJt4pyUXHUwMDFiWzMwbSBcdTAwMWJbMzRtc3RyaW5nclx1MDAxYlszMG0gMS4zLjFcblx1MDAxYlszMm3inJRcdTAwMWJbMzBtIFx1MDAxYlszNG10aWJibGUgXHUwMDFiWzMwbSAyLjAuMCAgICAgXHUwMDFiWzMybeKclFx1MDAxYlszMG0gXHUwMDFiWzM0bWZvcmNhdHNcdTAwMWJbMzBtIDAuMy4wXHUwMDFiWzM5bVxuXHUwMDFiWzMwbeKUgOKUgCBcdTAwMWJbMW1Db25mbGljdHNcdTAwMWJbMjJtIOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgCB0aWR5dmVyc2VfY29uZmxpY3RzKCkg4pSA4pSAXG5cdTAwMWJbMzFt4pyWXHUwMDFiWzMwbSBcdTAwMWJbMzRtZHBseXJcdTAwMWJbMzBtOjpcdTAwMWJbMzJtZmlsdGVyKClcdTAwMWJbMzBtICAgIG1hc2tzIFx1MDAxYlszNG1zdGF0c1x1MDAxYlszMG06OmZpbHRlcigpXG5cdTAwMWJbMzFt4pyWXHUwMDFiWzMwbSBcdTAwMWJbMzRtZHBseXJcdTAwMWJbMzBtOjpcdTAwMWJbMzJtbGFnKClcdTAwMWJbMzBtICAgICAgIG1hc2tzIFx1MDAxYlszNG1zdGF0c1x1MDAxYlszMG06OmxhZygpXG5cdTAwMWJbMzFt4pyWXHUwMDFiWzMwbSBcdTAwMWJbMzRtZHBseXJcdTAwMWJbMzBtOjpcdTAwMWJbMzJtc3JjKClcdTAwMWJbMzBtICAgICAgIG1hc2tzIFx1MDAxYlszNG1IbWlzY1x1MDAxYlszMG06OnNyYygpXG5cdTAwMWJbMzFt4pyWXHUwMDFiWzMwbSBcdTAwMWJbMzRtZHBseXJcdTAwMWJbMzBtOjpcdTAwMWJbMzJtc3VtbWFyaXplKClcdTAwMWJbMzBtIG1hc2tzIFx1MDAxYlszNG1IbWlzY1x1MDAxYlszMG06OnN1bW1hcml6ZSgpXHUwMDFiWzM5bVxuIn0= -->
+
+<pre><code>[30m── [1mAttaching packages[22m ───────────────────────────────────────────────────────────────────────────────── tidyverse 1.2.1 ──[39m
+[30m[32m✔[30m [34mtibble [30m 2.0.0     [32m✔[30m [34mpurrr  [30m 0.2.5
+[32m✔[30m [34mtidyr  [30m 0.8.2     [32m✔[30m [34mdplyr  [30m 0.7.8
+[32m✔[30m [34mreadr  [30m 1.3.1     [32m✔[30m [34mstringr[30m 1.3.1
+[32m✔[30m [34mtibble [30m 2.0.0     [32m✔[30m [34mforcats[30m 0.3.0[39m
+[30m── [1mConflicts[22m ──────────────────────────────────────────────────────────────────────────────────── tidyverse_conflicts() ──
+[31m✖[30m [34mdplyr[30m::[32mfilter()[30m    masks [34mstats[30m::filter()
+[31m✖[30m [34mdplyr[30m::[32mlag()[30m       masks [34mstats[30m::lag()
+[31m✖[30m [34mdplyr[30m::[32msrc()[30m       masks [34mHmisc[30m::src()
+[31m✖[30m [34mdplyr[30m::[32msummarize()[30m masks [34mHmisc[30m::summarize()[39m</code></pre>
+<!-- rnb-output-end -->
 
 <!-- rnb-chunk-end -->
 
@@ -267,20 +300,166 @@ library(tidyverse)</code></pre>
 <!-- rnb-chunk-begin -->
 
 
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuI2lmICghcmVxdWlyZU5hbWVzcGFjZShcIkJpb2NNYW5hZ2VyXCIsIHF1aWV0bHkgPSBUUlVFKSlcbiMgICAgaW5zdGFsbC5wYWNrYWdlcyhcIkJpb2NNYW5hZ2VyXCIpXG5cbiNCaW9jTWFuYWdlcjo6aW5zdGFsbChjKFwiYmlvYnJvb21cIiwgXCJNU25iYXNlXCIsIFwiZ29zZXFcIiwgXCJHTy5kYlwiLCBcIlVuaVByb3Qud3NcIiwgXCJsaW1tYVwiKSlcblxubGlicmFyeShsaW1tYSlcbmxpYnJhcnkoYmlvYnJvb20pXG5saWJyYXJ5KE1TbmJhc2UpXG5saWJyYXJ5KGdvc2VxKVxubGlicmFyeShHTy5kYilcbmxpYnJhcnkoVW5pUHJvdC53cylcbmBgYCJ9 -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuI2lmICghcmVxdWlyZU5hbWVzcGFjZShcIkJpb2NNYW5hZ2VyXCIsIHF1aWV0bHkgPSBUUlVFKSlcbiMgICAgaW5zdGFsbC5wYWNrYWdlcyhcIkJpb2NNYW5hZ2VyXCIpXG4jQmlvY01hbmFnZXI6Omluc3RhbGwoYyhcImJpb2Jyb29tXCIsIFwiTVNuYmFzZVwiLCBcImdvc2VxXCIsIFwiR08uZGJcIiwgXCJVbmlQcm90LndzXCIsIFwibGltbWFcIikpXG5saWJyYXJ5KGxpbW1hKVxubGlicmFyeShiaW9icm9vbSlcbmBgYCJ9 -->
 
 <pre class="r"><code>#if (!requireNamespace(&quot;BiocManager&quot;, quietly = TRUE))
 #    install.packages(&quot;BiocManager&quot;)
-
 #BiocManager::install(c(&quot;biobroom&quot;, &quot;MSnbase&quot;, &quot;goseq&quot;, &quot;GO.db&quot;, &quot;UniProt.ws&quot;, &quot;limma&quot;))
-
 library(limma)
-library(biobroom)
-library(MSnbase)
-library(goseq)
-library(GO.db)
-library(UniProt.ws)</code></pre>
+library(biobroom)</code></pre>
 <!-- rnb-source-end -->
+
+<!-- rnb-output-begin eyJkYXRhIjoiTG9hZGluZyByZXF1aXJlZCBwYWNrYWdlOiBicm9vbVxuIn0= -->
+
+<pre><code>Loading required package: broom</code></pre>
+<!-- rnb-output-end -->
+
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShNU25iYXNlKVxuYGBgIn0= -->
+
+<pre class="r"><code>library(MSnbase)</code></pre>
+<!-- rnb-source-end -->
+
+<!-- rnb-output-begin eyJkYXRhIjoiTG9hZGluZyByZXF1aXJlZCBwYWNrYWdlOiBCaW9jR2VuZXJpY3NcbkxvYWRpbmcgcmVxdWlyZWQgcGFja2FnZTogcGFyYWxsZWxcblxuQXR0YWNoaW5nIHBhY2thZ2U6IOKAmEJpb2NHZW5lcmljc+KAmVxuXG5UaGUgZm9sbG93aW5nIG9iamVjdHMgYXJlIG1hc2tlZCBmcm9tIOKAmHBhY2thZ2U6cGFyYWxsZWzigJk6XG5cbiAgICBjbHVzdGVyQXBwbHksIGNsdXN0ZXJBcHBseUxCLCBjbHVzdGVyQ2FsbCwgY2x1c3RlckV2YWxRLCBjbHVzdGVyRXhwb3J0LCBjbHVzdGVyTWFwLCBwYXJBcHBseSwgcGFyQ2FwcGx5LFxuICAgIHBhckxhcHBseSwgcGFyTGFwcGx5TEIsIHBhclJhcHBseSwgcGFyU2FwcGx5LCBwYXJTYXBwbHlMQlxuXG5UaGUgZm9sbG93aW5nIG9iamVjdCBpcyBtYXNrZWQgZnJvbSDigJhwYWNrYWdlOmxpbW1h4oCZOlxuXG4gICAgcGxvdE1BXG5cblRoZSBmb2xsb3dpbmcgb2JqZWN0cyBhcmUgbWFza2VkIGZyb20g4oCYcGFja2FnZTpkcGx5cuKAmTpcblxuICAgIGNvbWJpbmUsIGludGVyc2VjdCwgc2V0ZGlmZiwgdW5pb25cblxuVGhlIGZvbGxvd2luZyBvYmplY3RzIGFyZSBtYXNrZWQgZnJvbSDigJhwYWNrYWdlOnN0YXRz4oCZOlxuXG4gICAgSVFSLCBtYWQsIHNkLCB2YXIsIHh0YWJzXG5cblRoZSBmb2xsb3dpbmcgb2JqZWN0cyBhcmUgbWFza2VkIGZyb20g4oCYcGFja2FnZTpiYXNl4oCZOlxuXG4gICAgYW55RHVwbGljYXRlZCwgYXBwZW5kLCBhcy5kYXRhLmZyYW1lLCBiYXNlbmFtZSwgY2JpbmQsIGNvbE1lYW5zLCBjb2xuYW1lcywgY29sU3VtcywgZGlybmFtZSwgZG8uY2FsbCxcbiAgICBkdXBsaWNhdGVkLCBldmFsLCBldmFscSwgRmlsdGVyLCBGaW5kLCBnZXQsIGdyZXAsIGdyZXBsLCBpbnRlcnNlY3QsIGlzLnVuc29ydGVkLCBsYXBwbHksIGxlbmd0aHMsIE1hcCxcbiAgICBtYXBwbHksIG1hdGNoLCBtZ2V0LCBvcmRlciwgcGFzdGUsIHBtYXgsIHBtYXguaW50LCBwbWluLCBwbWluLmludCwgUG9zaXRpb24sIHJhbmssIHJiaW5kLCBSZWR1Y2UsXG4gICAgcm93TWVhbnMsIHJvd25hbWVzLCByb3dTdW1zLCBzYXBwbHksIHNldGRpZmYsIHNvcnQsIHRhYmxlLCB0YXBwbHksIHVuaW9uLCB1bmlxdWUsIHVuc3BsaXQsIHdoaWNoLFxuICAgIHdoaWNoLm1heCwgd2hpY2gubWluXG5cbkxvYWRpbmcgcmVxdWlyZWQgcGFja2FnZTogQmlvYmFzZVxuV2VsY29tZSB0byBCaW9jb25kdWN0b3JcblxuICAgIFZpZ25ldHRlcyBjb250YWluIGludHJvZHVjdG9yeSBtYXRlcmlhbDsgdmlldyB3aXRoICdicm93c2VWaWduZXR0ZXMoKScuIFRvIGNpdGUgQmlvY29uZHVjdG9yLCBzZWVcbiAgICAnY2l0YXRpb24oXCJCaW9iYXNlXCIpJywgYW5kIGZvciBwYWNrYWdlcyAnY2l0YXRpb24oXCJwa2duYW1lXCIpJy5cblxuXG5BdHRhY2hpbmcgcGFja2FnZTog4oCYQmlvYmFzZeKAmVxuXG5UaGUgZm9sbG93aW5nIG9iamVjdCBpcyBtYXNrZWQgZnJvbSDigJhwYWNrYWdlOkhtaXNj4oCZOlxuXG4gICAgY29udGVudHNcblxuTG9hZGluZyByZXF1aXJlZCBwYWNrYWdlOiBtelJcbkxvYWRpbmcgcmVxdWlyZWQgcGFja2FnZTogUmNwcFxuTG9hZGluZyByZXF1aXJlZCBwYWNrYWdlOiBTNFZlY3RvcnNcbkxvYWRpbmcgcmVxdWlyZWQgcGFja2FnZTogc3RhdHM0XG5cbkF0dGFjaGluZyBwYWNrYWdlOiDigJhTNFZlY3RvcnPigJlcblxuVGhlIGZvbGxvd2luZyBvYmplY3RzIGFyZSBtYXNrZWQgZnJvbSDigJhwYWNrYWdlOmRwbHly4oCZOlxuXG4gICAgZmlyc3QsIHJlbmFtZVxuXG5UaGUgZm9sbG93aW5nIG9iamVjdCBpcyBtYXNrZWQgZnJvbSDigJhwYWNrYWdlOnRpZHly4oCZOlxuXG4gICAgZXhwYW5kXG5cblRoZSBmb2xsb3dpbmcgb2JqZWN0IGlzIG1hc2tlZCBmcm9tIOKAmHBhY2thZ2U6YmFzZeKAmTpcblxuICAgIGV4cGFuZC5ncmlkXG5cbkxvYWRpbmcgcmVxdWlyZWQgcGFja2FnZTogUHJvdEdlbmVyaWNzXG5cblRoaXMgaXMgTVNuYmFzZSB2ZXJzaW9uIDIuOC4zIFxuICBWaXNpdCBodHRwczovL2xnYXR0by5naXRodWIuaW8vTVNuYmFzZS8gdG8gZ2V0IHN0YXJ0ZWQuXG5cblxuQXR0YWNoaW5nIHBhY2thZ2U6IOKAmE1TbmJhc2XigJlcblxuVGhlIGZvbGxvd2luZyBvYmplY3RzIGFyZSBtYXNrZWQgZnJvbSDigJhwYWNrYWdlOkhtaXNj4oCZOlxuXG4gICAgaW1wdXRlLCBuYXBsb3RcblxuVGhlIGZvbGxvd2luZyBvYmplY3QgaXMgbWFza2VkIGZyb20g4oCYcGFja2FnZTpzdGF0c+KAmTpcblxuICAgIHNtb290aFxuXG5UaGUgZm9sbG93aW5nIG9iamVjdCBpcyBtYXNrZWQgZnJvbSDigJhwYWNrYWdlOmJhc2XigJk6XG5cbiAgICB0cmltd3NcbiJ9 -->
+
+<pre><code>Loading required package: BiocGenerics
+Loading required package: parallel
+
+Attaching package: ‘BiocGenerics’
+
+The following objects are masked from ‘package:parallel’:
+
+    clusterApply, clusterApplyLB, clusterCall, clusterEvalQ, clusterExport, clusterMap, parApply, parCapply,
+    parLapply, parLapplyLB, parRapply, parSapply, parSapplyLB
+
+The following object is masked from ‘package:limma’:
+
+    plotMA
+
+The following objects are masked from ‘package:dplyr’:
+
+    combine, intersect, setdiff, union
+
+The following objects are masked from ‘package:stats’:
+
+    IQR, mad, sd, var, xtabs
+
+The following objects are masked from ‘package:base’:
+
+    anyDuplicated, append, as.data.frame, basename, cbind, colMeans, colnames, colSums, dirname, do.call,
+    duplicated, eval, evalq, Filter, Find, get, grep, grepl, intersect, is.unsorted, lapply, lengths, Map,
+    mapply, match, mget, order, paste, pmax, pmax.int, pmin, pmin.int, Position, rank, rbind, Reduce,
+    rowMeans, rownames, rowSums, sapply, setdiff, sort, table, tapply, union, unique, unsplit, which,
+    which.max, which.min
+
+Loading required package: Biobase
+Welcome to Bioconductor
+
+    Vignettes contain introductory material; view with 'browseVignettes()'. To cite Bioconductor, see
+    'citation(&quot;Biobase&quot;)', and for packages 'citation(&quot;pkgname&quot;)'.
+
+
+Attaching package: ‘Biobase’
+
+The following object is masked from ‘package:Hmisc’:
+
+    contents
+
+Loading required package: mzR
+Loading required package: Rcpp
+Loading required package: S4Vectors
+Loading required package: stats4
+
+Attaching package: ‘S4Vectors’
+
+The following objects are masked from ‘package:dplyr’:
+
+    first, rename
+
+The following object is masked from ‘package:tidyr’:
+
+    expand
+
+The following object is masked from ‘package:base’:
+
+    expand.grid
+
+Loading required package: ProtGenerics
+
+This is MSnbase version 2.8.3 
+  Visit https://lgatto.github.io/MSnbase/ to get started.
+
+
+Attaching package: ‘MSnbase’
+
+The following objects are masked from ‘package:Hmisc’:
+
+    impute, naplot
+
+The following object is masked from ‘package:stats’:
+
+    smooth
+
+The following object is masked from ‘package:base’:
+
+    trimws</code></pre>
+<!-- rnb-output-end -->
+
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShnb3NlcSlcbmBgYCJ9 -->
+
+<pre class="r"><code>library(goseq)</code></pre>
+<!-- rnb-source-end -->
+
+<!-- rnb-output-begin eyJkYXRhIjoiTG9hZGluZyByZXF1aXJlZCBwYWNrYWdlOiBCaWFzZWRVcm5cbkxvYWRpbmcgcmVxdWlyZWQgcGFja2FnZTogZ2VuZUxlbkRhdGFCYXNlXG4ifQ== -->
+
+<pre><code>Loading required package: BiasedUrn
+Loading required package: geneLenDataBase</code></pre>
+<!-- rnb-output-end -->
+
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShHTy5kYilcbmBgYCJ9 -->
+
+<pre class="r"><code>library(GO.db)</code></pre>
+<!-- rnb-source-end -->
+
+<!-- rnb-output-begin eyJkYXRhIjoiTG9hZGluZyByZXF1aXJlZCBwYWNrYWdlOiBBbm5vdGF0aW9uRGJpXG5Mb2FkaW5nIHJlcXVpcmVkIHBhY2thZ2U6IElSYW5nZXNcblxuQXR0YWNoaW5nIHBhY2thZ2U6IOKAmElSYW5nZXPigJlcblxuVGhlIGZvbGxvd2luZyBvYmplY3RzIGFyZSBtYXNrZWQgZnJvbSDigJhwYWNrYWdlOmRwbHly4oCZOlxuXG4gICAgY29sbGFwc2UsIGRlc2MsIHNsaWNlXG5cblRoZSBmb2xsb3dpbmcgb2JqZWN0IGlzIG1hc2tlZCBmcm9tIOKAmHBhY2thZ2U6cHVycnLigJk6XG5cbiAgICByZWR1Y2VcblxuXG5BdHRhY2hpbmcgcGFja2FnZTog4oCYQW5ub3RhdGlvbkRiaeKAmVxuXG5UaGUgZm9sbG93aW5nIG9iamVjdCBpcyBtYXNrZWQgZnJvbSDigJhwYWNrYWdlOmRwbHly4oCZOlxuXG4gICAgc2VsZWN0XG4ifQ== -->
+
+<pre><code>Loading required package: AnnotationDbi
+Loading required package: IRanges
+
+Attaching package: ‘IRanges’
+
+The following objects are masked from ‘package:dplyr’:
+
+    collapse, desc, slice
+
+The following object is masked from ‘package:purrr’:
+
+    reduce
+
+
+Attaching package: ‘AnnotationDbi’
+
+The following object is masked from ‘package:dplyr’:
+
+    select</code></pre>
+<!-- rnb-output-end -->
+
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShVbmlQcm90LndzKVxuYGBgIn0= -->
+
+<pre class="r"><code>library(UniProt.ws)</code></pre>
+<!-- rnb-source-end -->
+
+<!-- rnb-output-begin eyJkYXRhIjoiTG9hZGluZyByZXF1aXJlZCBwYWNrYWdlOiBSU1FMaXRlXG5Mb2FkaW5nIHJlcXVpcmVkIHBhY2thZ2U6IFJDdXJsXG5Mb2FkaW5nIHJlcXVpcmVkIHBhY2thZ2U6IGJpdG9wc1xuXG5BdHRhY2hpbmcgcGFja2FnZTog4oCYUkN1cmzigJlcblxuVGhlIGZvbGxvd2luZyBvYmplY3QgaXMgbWFza2VkIGZyb20g4oCYcGFja2FnZTp0aWR5cuKAmTpcblxuICAgIGNvbXBsZXRlXG4ifQ== -->
+
+<pre><code>Loading required package: RSQLite
+Loading required package: RCurl
+Loading required package: bitops
+
+Attaching package: ‘RCurl’
+
+The following object is masked from ‘package:tidyr’:
+
+    complete</code></pre>
+<!-- rnb-output-end -->
 
 <!-- rnb-chunk-end -->
 

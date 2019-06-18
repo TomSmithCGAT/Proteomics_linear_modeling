@@ -18,9 +18,7 @@ In this notebook we will identify the over-represented GO terms in the proteins 
 4. Plot
 5. Compare GO terms over-represented when using `limma` or `lm`
 
-For this analysis, we will need to source the GO.R script which contains some utility functions for dealing with GO terms.
 ```{r, message=FALSE, warning=FALSE}
-source("./GO.R")
 library(tidyverse)
 library(goseq)
 library(Hmisc)
@@ -36,15 +34,14 @@ theme_set(theme_bw(base_size = 20) +
 cbPalette <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7", "#999999")
 ```
 
+We need to source some functions which are stored in a script called "GO.R".
+```{r}
+source("./GO.R")
+```
+
 Below, we load the result for differential RNA binding testing from the previous notebooks
 ```{r}
-rna_binding_fit <- readRDS("../results/limma_rna_binding_fit.rds")
-rna_binding_fit_treat <- treat(rna_binding_fit,lfc=log2(1.5))
-
-limma_rna_binding_changes <- topTreat(rna_binding_fit_treat, coef = "conditionG1:typeOOPS", number = Inf,
-                                      p.value=0.01, adjust.method="BH", confint=0.95)
-
-limma_rna_binding_changes <- limma_rna_binding_changes[limma_rna_binding_changes$logFC>0,]
+limma_rna_binding_fit <- readRDS("../results/limma_rna_binding_fit.rds")
 
 compare_methods <- readRDS("../results/compare_methods_rna_binding_results.rds")
 
@@ -54,25 +51,49 @@ To perform the differential RNA binding testing, we will use the R package `gose
 
 In our case, we have reason to suspect that proteins with higher intensity will be more likely to be identified as having significantly altered RNA binding since the variance will be smaller so we will have more power to detect differences.
 
-The `limma` output contains a "AveExpr" value for each protein which represents the mean intensity. This is precisely the bias factor we are after so we can use this directly.
+The first step is to make a probability weight function (PWF) linking the bias factor with the probabilty of significant difference using the `nullp` function. 
 
-The first step is to make a probability weight function (PWF) linking the bias factor with the probabilty of significant difference using the `nullp` function. By default, the function expects a genome name and it will go and fetch the bias data. However, we can also just provide this data ourselves. Below, we obtain the PWF and `goseq` outputs plots to show how closely these fit the observed relationship.
+For this, we need a boolean to indicate which proteins we identify as having a significant change and a vector of the same length which details our bias factor.
+
+The `limma` output contains a "AveExpr" value for each protein which represents the mean intensity. This is precisely the bias factor we are after so we can use this directly.
 ```{r}
+bias <- compare_methods$AveExpr
+print(length(bias))
+```
+
+For the booleans, we can extract this from our results tables. We'll set our thresholds at 1% FDR and >= 1.4 fold change. Note that these are completely arbitrary thresholds of course!
+```{r}
+
+limma_rna_binding_fit_treat <- treat(limma_rna_binding_fit, lfc=log2(1.4)) 
+
+limma_rna_binding_changes <- topTreat(limma_rna_binding_fit_treat, coef = "conditionG1:typeOOPS", n = Inf,
+                                      p.value=0.01, adjust.method="BH", confint=0.95)
+
+limma_rna_binding_changes <- limma_rna_binding_changes[limma_rna_binding_changes$logFC>log2(1.5),]
+
 limma_sig_bool <- compare_methods$Row.names %in% rownames(limma_rna_binding_changes)
 names(limma_sig_bool) <- compare_methods$Row.names
 print(table(limma_sig_bool))
+```
 
-lm_sig_bool <- (compare_methods$lm_BH < 0.01 & compare_methods$logFC>0)
+```{r}
+lm_sig_bool <- (compare_methods$lm_BH < 0.01 & compare_methods$logFC>log2(1.4))
 names(lm_sig_bool) <- compare_methods$Row.names
 print(table(lm_sig_bool))
+```
+\colorlet{shadecolor}{yellow!10} 
+\begin{shaded}
+Questions: Why do we have fewer proteins with an increase in RNA binding according to limma?
+\end{shaded}
+\colorlet{shadecolor}{lightgray!10} 
 
-bias <- compare_methods$AveExpr
- 
+
+By default, the function expects a genome name and it will go and fetch the bias data. However, we can also just provide this data ourselves. Below, we obtain the PWF and `goseq` outputs plots to show how closely these fit the observed relationship.
+
+```{r, out.width = '40%'}
 limma_pwf <- nullp(limma_sig_bool, bias.data=bias, plot.fit=TRUE)
 lm_pwf <- nullp(lm_sig_bool, bias.data=bias, plot.fit=TRUE)
 ```
-
-Note that the fit for the `limma` results isn't great. For some reason, `goseq` sometimes doesn't obtain a very good fit but at least it's going to account for the relationship to some extent. If the fit is really terrible, it's possible to perform the spline fitting manually and provide this to `goseq` but we won't go into that here.
 
 Now, we need those GO terms from the previous notebook
 ```{r}
@@ -80,13 +101,13 @@ sapiens.go.full <- readRDS("../results/h_sapiens_go_full.rds")
 head(sapiens.go.full)
 ```
 
-And we're ready to run `goseq`. By default, `goseq` expects a `genome` and will obtain the GO terms automatically. However, if we provide our own to the `gene2cat` argument, it will use this instead. This also means we could use `goseq` to interrogate over-represented KEGG terms etc by simply providing them at this point. 
-```{r}
+And we're ready to run `goseq`. By default, `goseq` expects a `genome` and will obtain the GO terms automatically. However, if we provide our own to the `gene2cat` argument, it will use this instead. This also means we could use `goseq` to interrogate over-represented KEGG terms, interpro domains, etc by simply providing them at this point. 
+```{r, echo=FALSE}
 limma_over_rep_go <- goseq(limma_pwf, gene2cat=sapiens.go.full)
 lm_over_rep_go <- goseq(lm_pwf, gene2cat=sapiens.go.full)
 ```
 
-We need to adjust the p-values to account for multiple testing ()
+We need to adjust the p-values to account for multiple testing. Again, we'll use the Benjamini-Hochberg method.
 ```{r}
 limma_over_rep_go$BH <- p.adjust(limma_over_rep_go$over_represented_pvalue, method="BH")
 lm_over_rep_go$BH <- p.adjust(lm_over_rep_go$over_represented_pvalue, method="BH")
@@ -101,7 +122,7 @@ Questions:
 
 - How many would we expect to have a p-value < 0.05 by chance?
 
-- How many do?
+- How many did have a p-value < 0.05?
 
 - What can you infer from this?
 
@@ -109,13 +130,22 @@ Questions:
 \colorlet{shadecolor}{lightgray!10} 
 
 
-We can filter the output to only include the GO terms which are over-represented at 1% FDR
+We can filter the output to only include the GO terms which are over-represented at 1% FDR (there are 112 for `limma`)
 ```{r}
 sig_terms <- limma_over_rep_go %>% filter(BH<0.01)
 print(dim(sig_terms))
-print(head(sig_terms, 10))
+print(head(sig_terms))
 ```
-We would also like to know the effect size, e.g how over-represented are the terms. We could use the `numDEInCat` and `numInCat` columns and calculate the over-representation as (`numInCat`/Number of proteins observed) / (`numDEInCat`/ Number of proteins with change in RNA binding). However, this would not take account of the bias we known exists. 
+We would also like to know the effect size, e.g how over-represented are the terms. We could use the `numDEInCat` and `numInCat` columns and calculate the over-representation as:
+
+(`numInCat`/ Number of proteins observed) /
+(`numDEInCat`/ Number of proteins with change in RNA binding). 
+
+\colorlet{shadecolor}{yellow!10} 
+\begin{shaded}
+Questions: Why would it be sub-optimal to calculate the magnitude of the over-representation as indicated above?
+\end{shaded}
+\colorlet{shadecolor}{lightgray!10} 
 
 The function below estimates the effect size, taking into account the bias (using the PWF)
 ```{r}
@@ -142,25 +172,26 @@ addAdjustedOverRep <- function(obj, pwf, gene2cat){
 }
 ```
 
-Now we can filter by the estimated over-representation too
+Now we can filter by the estimated over-representation too.
 ```{r}
 limma_over_rep_go %>% filter(BH<0.01)  %>% 
   addAdjustedOverRep(lm_pwf, sapiens.go.full) %>%
   filter(adj_over_rep>2) %>%
-  head(10)
+  head()
 
 lm_over_rep_go %>% filter(BH<0.01)  %>% 
   addAdjustedOverRep(lm_pwf, sapiens.go.full) %>%
   filter(adj_over_rep>2) %>%
-  head(10)
+  head()
 
 ```
-Note that many of the above GO terms are essentially redundant and are simply the same set of proteins with each of the GO terms up the heirachy being over-represented. We can perform a simplification by taking each over-represented GO term, considering all its offspring and removing it if any of the offspring terms are more significantly over-represented. 
+Note that many of the above GO terms are essentially redundant and are simply the same set of proteins with each of the GO terms up the heirachy being over-represented. We can perform a simplification by taking each over-represented GO term, identifying all its offspring and ancesters and removing it if any of the terms above or below are more significantly over-represented. 
 
 Below, I've wrapped this all up into a function so that we can pass a data.frame of significantly over-represented GO terms and it will remove the redundant terms.
 
 ```{r}
 remove_redundant_GO_terms <- function(go_df){
+  
   all_observed_go <- unique(go_df$category) # identify all the GO terms
   all_observed_go <- all_observed_go[!is.na(all_observed_go)] # Remove any NAs
   
@@ -188,20 +219,24 @@ remove_redundant_GO_terms <- function(go_df){
   
   # When all observed go terms are in processed, stop while loop
   while(length(setdiff(all_observed_go, processed))!=0){
+    
+    # take one of the GO terms
     go_id <- setdiff(all_observed_go, processed)[1]
     
-    # go_tree = the go term plus all ancesters and offspring also observed
+    # Find all the ancesters and offspring = go_tree
+    # (Only include those also observed as over-rep GO)
     go_tree <- union(go2Ancesters[[go_id]], go2Offspring[[go_id]]) %>%
       intersect(all_observed_go) %>% c(go_id)
     
     top_go <- go_df %>%
       filter(category %in% go_tree) %>% # subset to the terms in go_tree
       arrange(over_represented_pvalue) %>% # order by p-value (ascending by default)
-      head(1) %>% # keep the top row
-      pull(category) # pull out the category
-    
-    # We want to remove all the terms in the tree except top_go
-    terms_to_remove <- setdiff(go_tree, top_go)
+      pull(category) %>%# pull out the category
+      head(1) # keep the top GO term
+
+    # We want to remove all ancester and offspring terms within the go_tree for the top GO term
+    terms_to_remove <- union(go2Ancesters[[top_go]], go2Offspring[[top_go]]) %>%
+      intersect(go_tree)
     
     processed <- union(processed, go_tree) # all terms in the tree are now considered "processed"
 
@@ -228,7 +263,7 @@ limma_over_rep_go %>% filter(BH<0.01)  %>%
   addAdjustedOverRep(limma_pwf, sapiens.go.full) %>%
   filter(adj_over_rep>3) %>%
   remove_redundant_GO_terms() %>%
-  head(10)
+  head()
 ```
 
 
@@ -239,11 +274,11 @@ lm_over_rep_go %>% filter(BH<0.01)  %>%
   addAdjustedOverRep(lm_pwf, sapiens.go.full) %>%
   filter(adj_over_rep>3) %>%
   remove_redundant_GO_terms() %>%
-  head(10)
+  head()
 ```
 
 
-OK so now we're getting a more useful set of terms. The next thing we might want to do is some basic plot to show the result. Again, I've wrapped this up into a a function below so we can pass the GO dataframe straight through the above pipe and plot the results
+OK so now we're getting a more useful set of terms. The next thing we might want to do is some basic plot to show the result. Again, I've wrapped this up into a a function below so we can pass the GO dataframe straight through the above pipe to filter the results and then plot the filtered results.
 ```{r}
 plotTerms <- function(go_df, 
                       horizontal=FALSE, # make plot hoizontal
@@ -259,8 +294,6 @@ plotTerms <- function(go_df,
     go_df <- go_df %>% arrange(desc(ontology), desc(over_represented_pvalue))
     go_df <- go_df %>% tail(plot_top) # subset to top n most significant terms
   }
-  
-  print(go_df)
   
   if(shorten_term){
     go_df$term_for_plot <- substr(go_df$term, 1, 40) # cut at character 40
@@ -297,7 +330,7 @@ plotTerms <- function(go_df,
 ```
 
 
-```{r, fig.height=7, fig.width=10}
+```{r, fig.height=7, fig.width=10, out.width = '60%'}
 limma_over_rep_go %>% filter(BH<0.01)  %>% 
   addAdjustedOverRep(limma_pwf, sapiens.go.full) %>%
   filter(adj_over_rep>3) %>%
@@ -305,7 +338,7 @@ limma_over_rep_go %>% filter(BH<0.01)  %>%
   plotTerms(horizontal=TRUE, shorten_term=TRUE, plot_top=20)
 ```
 
-```{r, fig.height=7, fig.width=10}
+```{r, fig.height=7, fig.width=10, out.width = '60%'}
 lm_over_rep_go %>% filter(BH<0.01)  %>% 
   addAdjustedOverRep(lm_pwf, sapiens.go.full) %>%
   filter(adj_over_rep>3) %>%
@@ -323,20 +356,20 @@ Task: Modify the plotTerms function so that it makes a separate plot for each on
 
 \colorlet{shadecolor}{lightgray!10} 
 
-One thing you may have noticed in the above is that the over-represented terms are slightly different for `lm` and `limma` above. For example, "aminoacyl-tRNA ligase activity" is the most significantly overrepresented MF GO term in the `lm` proteins but not present in the `limma` over-rep. GO terms.
+One thing you may have noticed in the above is that the over-represented terms are slightly different for `lm` and `limma` above. For example, "tRNA aminoacylation for protein translation" is one of the most significantly overrepresented MF GO term in the `lm` proteins but not present in the `limma` over-represented GO terms (although "aminoacyl-tRNA ligase activity" is there in the MF terms)
 
-Below, we take the GO terms over-rep with `lm` (1% FDR, >4-fold over-rep.) and inspect them with our `limma` GO over-rep analysis. Note that very few of the proteins annotated with "aminoacyl-tRNA ligase activity" are detected as having a significant change in RNA binding according to `limma` - 3/24 vs 21/24 for `lm`!!
+Below, we take the GO term "tRNA aminoacylation for protein translation". Note that very few of the proteins annotated with "tRNA aminoacylation for protein translation" are detected as having a significant change in RNA binding according to `limma` - 11/26 vs 20/26 for `lm`!!
 ```{r, message=FALSE, warning=FALSE}
 
-lm_over_rep_go_sig <- lm_over_rep_go %>% filter(BH<0.01)  %>% 
-  addAdjustedOverRep(lm_pwf, sapiens.go.full) %>%
-  filter(adj_over_rep>4) %>%
-  remove_redundant_GO_terms() %>%
-  pull(category)
-  
-limma_over_rep_go %>% filter(category %in% lm_over_rep_go_sig) %>%
+lm_over_rep_go %>% filter(term=="tRNA aminoacylation for protein translation") %>%
   addAdjustedOverRep(lm_pwf, sapiens.go.full)  %>%
   head(10)
+
+
+limma_over_rep_go %>% filter(term=="tRNA aminoacylation for protein translation") %>%
+  addAdjustedOverRep(lm_pwf, sapiens.go.full)  %>%
+  head(10)
+
 ```
 
 We want to take a look at the intensity values, so let's make that `plotIntensities()` function again
@@ -356,39 +389,68 @@ plotIntensities <- function(obj){
 }
 ```
 
-If we take a look at the intensity values for these 24 proteins, most do seem to have a clear increase in RNA binding (the two that don't are both mitochondrial). So, why does `limma` only detect 3/24 of these as increasing RNA binding...
-```{r, fig.height=10, fig.width=10}
-tRNA_ligases <- sapiens.go.full %>% filter(GO.ID=="GO:0004812") %>% pull(UNIPROTKB)
-combined_intensities[intersect(rownames(combined_intensities), tRNA_ligases),] %>% plotIntensities() %>% print()
+If we take a look at the intensity values for these 26 proteins annotated with "tRNA aminoacylation for protein translation", most do seem to have a clear increase in RNA binding. Note that not all of these are cytosolic tRNA ligases. Q5JPH6 + Q5JTZ9 are mitchondrial tRNA ligase. Q15181=Inorganic pyrophosphatase and Q12904 & Q13155 interact with the Aminoacyl tRNA synthase complex.
+
+So, why does `limma` only detect 11/26 of these as increasing RNA binding given the apparent signficiant changes...
+```{r, fig.height=10, fig.width=10, out.width = '60%'}
+tRNA_aa <- sapiens.go.full %>%
+  filter(TERM=="tRNA aminoacylation for protein translation") %>%
+  pull(UNIPROTKB)
+
+tRNA_aa_intensities <- combined_intensities[intersect(rownames(combined_intensities), tRNA_aa),] %>%
+  plotIntensities()
+
+print(tRNA_aa_intensities + theme(text=element_text(size=10)))
 ```
 
-Next, we compare the p-values again. Note that all but two tRNA-ligases (the Mt ones) are in the bottom left quadrant (e.g <1% with both `lm` and `limma`).
-```{r}
+Next, we compare the p-values again. Note that the four proteins not in the bottom left quadrant (e.g <1% FDR with both `lm` and `limma`) are the two Mt tRNA-ligases and the two aminoacyl tRNA synthase complex interactors.
+```{r, out.width = '60%'}
 
 max_p_sig_lm <- compare_methods %>% filter(lm_BH<0.01) %>% pull(lm_p_value) %>% max()
 max_p_sig_limma <- compare_methods %>% filter(adj.P.Val<0.01) %>% pull(P.Value) %>% max()
 
 compare_methods %>% 
-  mutate(tRNA_ligase=Row.names %in% tRNA_ligases) %>%
-  arrange(tRNA_ligase) %>%
-  ggplot(aes(x=log10(lm_p_value), y=log10(P.Value), colour=tRNA_ligase)) +
+  mutate(tRNA_aa=Row.names %in% tRNA_aa) %>%
+  arrange(tRNA_aa) %>%
+  ggplot(aes(x=log10(lm_p_value), y=log10(P.Value), colour=tRNA_aa)) +
   geom_point() +
   scale_colour_manual(values=c("grey40", cbPalette[6])) + 
   geom_vline(xintercept=log10(max_p_sig_lm), linetype=2, colour="grey70") +
   geom_hline(yintercept=log10(max_p_sig_limma), linetype=2,colour="grey70")
 ```
-Finally, we look at the estimated fold change. Note that most of the fold change estimates are relatively low (~1.5 - 2-fold). So these proteins aren't identified by `limma` because we've used a more conservative approach and also thresholded on the confidence interval for the estimated fold change. This demonstrates one of the downsides of applying such thresholds since these proteins were subsequently shown to have a consistent (if still slight) change in RNA binding in a Thymidine + Nocadazole experiment suggesting this is probably a real change in RNA binding. So, while a threshold on the log fold change is a sensible approach, be careful about what threshold you use!
-```{r}
+
+Finally, we look at the point estimates for the fold change. The green dashed lines represent our 1.4-fold threshold. The dashed grey-line is the threshold for the BH adjusted p-value being < 0.01.
+```{r, out.width = '60%'}
+max_p_sig_limma <- compare_methods %>% filter(adj.P.Val<0.01) %>% pull(P.Value) %>% max()
+
 compare_methods %>% 
-  mutate(tRNA_ligase=Row.names %in% tRNA_ligases) %>%
-  arrange(tRNA_ligase) %>%
-  ggplot(aes(logFC, -log10(P.Value), colour=tRNA_ligase)) +
+  mutate(tRNA_aa=Row.names %in% tRNA_aa) %>%
+  mutate(limma_sig=Row.names %in% rownames(limma_rna_binding_changes)) %>%
+  mutate(tRNA_aa_limma=recode(interaction(tRNA_aa, limma_sig),
+                              "TRUE.TRUE"="tRNA AA limma sig",
+                              "TRUE.FALSE"="tRNA AA limma not sig",
+                              "FALSE.TRUE"="Other",
+                              "FALSE.FALSE"="Other")) %>% 
+  arrange(tRNA_aa) %>%
+  ggplot(aes(logFC, -log10(P.Value), colour=tRNA_aa_limma)) +
   geom_point(size=1) +
-  scale_colour_manual(values=c("grey40", cbPalette[6])) + 
-  geom_vline(xintercept=1, linetype=2, colour="grey70") +
-  geom_vline(xintercept=-1, linetype=2, colour="grey70") +
+  scale_colour_manual(values=c("grey70", cbPalette[5], cbPalette[6]), name="") + 
+  geom_vline(xintercept=log2(1.4), linetype=2, colour=cbPalette[3]) +
+  geom_hline(yintercept=-log10(max_p_sig_limma), linetype=2, colour="grey60") +
   theme(legend.position="top", legend.direction=2)
 ```
+
+
+\colorlet{shadecolor}{yellow!10} 
+\begin{shaded}
+
+Question: Why are there proteins with p-values less than the FDR threshold (above the grey line) and >1.4 fold change but not identified as significant with limma?
+
+\end{shaded}
+
+\colorlet{shadecolor}{lightgray!10} 
+
+This demonstrates the downsides of applying a thresholds to the confidence interval for the estimated fold change when we don't know what fold change is biological relevant. These proteins were subsequently shown to have a consistent (if still slight) change in RNA binding in a Thymidine + Nocadazole experiment suggesting this is probably a real change in RNA binding. So, while a threshold on the log fold change is a very sensible approach, be careful about what threshold you use!
 
 And that's the end of the workshop!
 

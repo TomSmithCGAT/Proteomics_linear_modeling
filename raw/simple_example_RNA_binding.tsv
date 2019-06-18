@@ -1,0 +1,13 @@
+sample	type	condition	intensity	protein_id
+Total_Control_1	Total	Control	3.5	protein1
+Total_Control_2	Total	Control	5	protein1
+Total_Control_3	Total	Control	4.5	protein1
+Total_Treated_4	Total	Treated	4.5	protein1
+Total_Treated_5	Total	Treated	4	protein1
+Total_Treated_6	Total	Treated	4.8	protein1
+OOPS_Control_1	OOPS	Control	2	protein1
+OOPS_Control_2	OOPS	Control	2.1	protein1
+OOPS_Control_3	OOPS	Control	1.2	protein1
+OOPS_Treated_4	OOPS	Treated	3.5	protein1
+OOPS_Treated_5	OOPS	Treated	4	protein1
+OOPS_Treated_6	OOPS	Treated	4.1	protein1

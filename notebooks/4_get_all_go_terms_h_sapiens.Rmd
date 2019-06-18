@@ -14,9 +14,9 @@ Gene ontology (GO) terms are heirachical: http://geneontology.org/docs/ontology-
 
 For this reason, when analysing the over-represented GO terms, it's neccessary to consider all the GO terms for a feature, not just those which are directly annotated to the feature.
 
-To date, all GO over-representation tools I've used fail to consider the ancestor terms unless you provide them. As a motivating example, tRNA binding proteins are not always annotated separately as both "tRNA-binding" and "RNA-binding". For Uniprot, they will only have both annotations if they are annotated as RNA binding via a difference source than their tRNA binding annotation. To see this for yourself, take proteins from below and note the difference in the annotations recorded in Uniprot for those with both ("TRUE") or just tRNA binding annotation ("FALSE")
+To date, all GO over-representation tools I've used fail to consider the ancestor terms unless you provide them. As a motivating example, tRNA binding proteins are not always annotated separately as both "tRNA-binding" and "RNA-binding". For Uniprot, they will only have both annotations if they are annotated as RNA binding via a difference source than their tRNA binding annotation. 
 
-In this notebook, we take a dataframe with GO annotations and expand all GO terms to include the ancestors too using the `getAllGOTerms` function from our `CamProt_R/GO.R` script. For some species this may take a long time - It takes ~ 20 minutes for the ~20,000 _H.sapiens_ proteins. Hence output is saved in the `../results` directory. 
+In this notebook, we take a dataframe with GO annotations and expand all GO terms to include the ancestors too using functions from our `./GO.R` script. For some species this may take a long time - It takes ~ 20 minutes for the ~20,000 _H.sapiens_ proteins. Hence output is saved in the `../results` directory. 
 ```{r, message=FALSE, warning=FALSE}
 suppressMessages(library(dplyr))
 suppressMessages(library(tidyverse))
@@ -24,6 +24,15 @@ suppressMessages(library(biobroom))
 suppressMessages(library(UniProt.ws))
 source("./GO.R")
 ```
+
+
+\colorlet{shadecolor}{yellow!10} 
+\begin{shaded}
+Questions: What does the source function do? Why would we want to keep this code separate from the notebook.
+\end{shaded}
+\colorlet{shadecolor}{lightgray!10} 
+
+
 This file lists all the human Swiss-Prot proteins. We could also parse this information from the fasta database we searched against.
 ```{r}
 human_protein_ids <- read.delim("../raw/human_protein_ids_plus_gene_names.tsv")

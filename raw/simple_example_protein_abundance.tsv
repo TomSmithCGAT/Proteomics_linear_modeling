@@ -1,0 +1,7 @@
+"protein_id"	"condition"	"intensity"
+"1"	"protein1"	"Control"	3.5
+"2"	"protein1"	"Control"	5
+"3"	"protein1"	"Control"	4.5
+"4"	"protein1"	"Treated"	4.5
+"5"	"protein1"	"Treated"	4
+"6"	"protein1"	"Treated"	4.8
