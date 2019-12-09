@@ -1,7 +1,7 @@
 # Identifying changes in RNA binding
 A short workshop to demonstrate how to use linear modeling to identify changes in RNA binding from parallel `Total` and `RNA-bound` protein quantification.
 
-Here, we assume the reader is aware of the basic principles of protein quantification using isobaric tags (in this case, TMT labeling). We further assume the reader is aware of the OOPS method used to obtain RNA-bound protein (). Finally, the reader will benefit from prior understanding of the `MsnSet` class. 
+Here, we assume the reader is aware of the basic principles of protein quantification using isobaric tags (in this case, TMT labeling). We further assume the reader is aware of the OOPS method used to obtain RNA-bound protein ([OOPS paper](https://www.nature.com/articles/s41587-018-0001-2)). Finally, the reader will benefit from prior understanding of the `MsnSet` class. 
 
 The workshop takes the form of R markdown notebooks (See [here](notebooks/)) with worked examples and questions and tasks to prompt the reader to consider important aspects of the analysis. When working through the workshop by oneself, the answers to the questions and tasks can be found [here](workshop_answers.txt).
 
