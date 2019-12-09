@@ -77,7 +77,7 @@ print_output(summary(fit))
 
 \colorlet{shadecolor}{yellow!10} 
 \begin{shaded}
-Question: What does the Intercept represent? Is the estimate and/or p-value of interest to us?
+1.1 Question: What does the Intercept represent? Is the estimate and/or p-value of interest to us?
 \end{shaded}
 
 \colorlet{shadecolor}{lightgray!10} 
@@ -97,12 +97,13 @@ print_output(ttest_results)
 So in this case, we could just use a t-test? However, often our experimental design is slightly more complicated. Also, later we will see how to use `limma` to adjust the statistical test for even a simple design such as this when we have a small number of replicates.
 
 ## Accounting for other factors
+As a brief aside, we now consider how to account for further experimental conditions within the same statistical framework.
 
 In the following experiment, we have quantified protein abundance in mouse blood samples _before_ and _after_ treatment.
 
 \colorlet{shadecolor}{blue!10} 
 \begin{shaded}
-Question: How would you describe an experimental design such as this?
+1.2 Question: How would you describe an experimental design such as this?
 \end{shaded}
 \colorlet{shadecolor}{lightgray!10} 
 
@@ -123,7 +124,7 @@ mouse_treatment %>%
 
 \colorlet{shadecolor}{blue!10} 
 \begin{shaded}
-Task: Modify the code so that the plot to show the change between Control and Treated for each mouse. How would you interpret this?
+1.3 Task: Modify the code so that the plot to show the change between Control and Treated for each mouse. How would you interpret this?
 \end{shaded}
 \colorlet{shadecolor}{lightgray!10} 
 
@@ -135,7 +136,7 @@ print_output(summary(fit))
 ```
 \colorlet{shadecolor}{blue!10} 
 \begin{shaded}
-Question: How would you interpret the summary above
+1.4 Question: How would you interpret the summary above?
 \end{shaded}
 \colorlet{shadecolor}{lightgray!10} 
 
@@ -146,7 +147,7 @@ print_output(summary(fit), cex=0.65)
 ```
 \colorlet{shadecolor}{blue!10} 
 \begin{shaded}
-Question: Why do we only have one coefficient for the mouse ID, even though there are 5 different mice? Is this what we want?
+1.5 Question: Why do we only have one coefficient for the mouse ID, even though there are 5 different mice? Is this what we want?
 \end{shaded}
 \colorlet{shadecolor}{lightgray!10} 
 
@@ -162,7 +163,7 @@ print_output(summary(fit), cex=0.5)
 
 \colorlet{shadecolor}{blue!10} 
 \begin{shaded}
-Question: Are we interested in the coefficients and p-values for the mouse variables?
+1.6 Question: Are we interested in the coefficients and p-values for the mouse variables?
 \end{shaded}
 \colorlet{shadecolor}{lightgray!10} 
 
@@ -178,8 +179,7 @@ print_output(ttest_results)
 ```
 
 ## Using interaction terms
-
-OK, so now we're going to finally apply a linear model in a situation where a t-test would be inadequate.
+So far, the experiments that we've considered don't require a linear model and a t-test would be exactly equivalent and yield an identical result. Now we're going to apply a linear model in a situation where a t-test would be inadequate.
 
 In this dataset, we've quantified "Total" protein abundance and RNA-bound protein using OOPS across a "Control/Treatment" experiment (n=3). For both total and OOPS, we have performed a 6-plex TMT experiment such that we have separately obtained protein-level abundance for "Total" and "OOPS" across the same samples. Again, we will just consider a single protein here. 
 
@@ -207,7 +207,7 @@ print(plot_all)
 
 \colorlet{shadecolor}{yellow!10} 
 \begin{shaded}
-Question: How would you interpret the intentisy values for this protein
+1.7 Question: How would you interpret the intensity values for this protein?
 \end{shaded}
 
 \colorlet{shadecolor}{lightgray!10} 
@@ -227,11 +227,9 @@ print_output(summary(fit))
 
 \colorlet{shadecolor}{yellow!10} 
 \begin{shaded}
-Question: 
+1.8 Question: What do the other coefficients represent and are we interested in the estimates and p-values?
 
-1. What do the other coefficients represent and are we interested in the estimates and p-values?
-
-2. Note that the intercept term is described as "conditionTreated:typeTotal".
+1.9 Question: Note that the interaction term is described as "conditionTreated:typeTotal".
    What does this mean with respect to how you interpret the coefficient estimate?
 \end{shaded}
 \colorlet{shadecolor}{lightgray!10} 
@@ -244,7 +242,7 @@ simple_example_rb$type <- factor(simple_example_rb$type, levels=c("Total", "OOPS
 
 \colorlet{shadecolor}{yellow!10} 
 \begin{shaded}
-Question: What effect will this have on our linear model?
+1.10 Question: What effect will this have on the interaction term in our linear model?
 \end{shaded}
 \colorlet{shadecolor}{lightgray!10} 
 
@@ -275,13 +273,14 @@ fit1 <- lm(intensity~cond*type_1)
 
 print(simple_example_rb$sample)
 print(plot_all)
-print(coef(fit1))
+print(summary(fit1))
 print(model1)
+
 
 ```
 \colorlet{shadecolor}{blue!10} 
 \begin{shaded}
-Task: By inspecting the model matrix, identify which samples are modelled by the intercept only. Does the intercept value make sense considering the intensity values for these samples?
+1.11 Task: By inspecting the model matrix, identify which samples are modelled by the intercept only. Does the intercept value make sense considering the intensity values for these samples?
 \end{shaded}
 \colorlet{shadecolor}{lightgray!10} 
 
@@ -292,7 +291,7 @@ model2 <- model.matrix(intensity~cond*type_2)
 fit2 <- lm(intensity~cond*type_2) 
 
 print(simple_example_rb$sample)
-print(coef(fit2))
+print(summary(fit2))
 print(model2)
 
 ```

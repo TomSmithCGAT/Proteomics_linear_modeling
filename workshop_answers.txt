@@ -1,0 +1,190 @@
+1_simple_example.Rmd
+====================
+
+1.1 Question: What does the Intercept represent? Is the estimate and/or p-value of interest to us?
+
+Answer: With the formula intensity~condition, the intercept represents the average protein abundance
+
+
+1.2 Question: How would you describe an experimental design such as this?
+
+Answer: This is a "paired" experimental design since the experimental unit for "before" and "after" samples is the same mouse.
+
+
+1.3 Task: Modify the code so that the plot to show the change between Control and Treated for each mouse. How would you interpret this?
+
+Answer: The following code will show the change for each mouse separately. It appears that the change is approximately the same for each mouse, despite the differences in the Control condition.
+
+mouse_treatment %>%
+  ggplot(aes(x=condition, y=intensity, colour=mouse, group=mouse)) +
+  geom_point() + geom_line()
+
+
+1.4 Question: How would you interpret the summary above?
+
+Answer: The t-statistic for the `ConditionTreated` term is 1.675, with an associated P-value of 0.132. This indicates that we can not reject the null hypothesis that the condition does not affect protein abundance.
+
+
+1.5 Question: Why do we only have one coefficient for the mouse ID, even though there are 5 different mice? Is this what we want?
+
+Answer: The mouse column is type "int" and thus gets treated as a continuous variable in the linear model. This is not what we want!
+
+
+1.6 Question: Are we interested in the coefficients and p-values for the mouse variables?
+
+Answer: Our main interest is the effect of the condition. In this sense, we are no interested whether there is any difference between the difference in the baseline protein abundances for each mouse and we can ignore the coefficients and p-values for the mouse variables.
+
+
+1.7 Question: How would you interpret the intensity values for this protein?
+
+Answer: It appears there has been little or no difference in the abundance of the protein (Total) but a clear increase in the amount of RNA-bound protein (OOPS).
+
+
+1.8 Question: What do the other coefficients represent and are we interested in the estimates and p-values?
+
+Answer: The conditionTreated coefficient represents the average abundance of the samples which are Treated (minus the intercept value). The typeTotal coefficient represents the average abundance of the Total samples (minus the intercept value).
+
+Note that we can visually inspect the model matrix thusly if required:
+
+model.matrix(simple_example_rb$intensity ~ simple_example_rb$condition +
+simple_example_rb$type + simple_example_rb$condition:simple_example_rb$type)
+
+In both cases, we are not interested in the coefficient estimates and P-values.
+
+
+1.9 Question: Note that the interaction term is described as "conditionTreated:typeTotal".
+   What does this mean with respect to how you interpret the coefficient estimate?
+
+Answer: This means the baseline type is OOPS. Thus, the coefficient estimate for the interaction term represents the difference between OOPS->Total. This means positive values represent a reduced RNA binding which is confusing!
+
+
+1.10 Question: What effect will this have on the interaction term in our linear model?
+
+Answer: This will change the reference value and thus the sign of the coefficient but not the magnitude. Note that it does change the magnitude of some of the main term coefficients. See the following cells for a fuller inspection of why this happens.
+
+
+1.11 Task: By inspecting the model matrix, identify which samples are modelled by the intercept only. Does the intercept value make sense considering the intensity values for these samples?
+
+The model matrix shows that the 7th-9th samples are modeled by the intercept term alone. These are the "OOPS control" samples and the intercept value represents their average abundance. Note in model2 how changing the levels changes the samples modeled by the intercept term alone and thus the value of the intercept.
+
+
+2_identify_changes_in_RNA_binding.Rmd
+=====================================
+
+2.1 Question: Why doesn't the MSnSet object store all the data in this long format?
+
+Answer: For the purposes of data manipulation and application of linear algebra algorithms, it is much more beneficial to have the abundance data in the form of a matrix. In addition,
+the "long" data format is a very inefficient way in which to store the data since it requires storing redundant information.
+
+2.2 Task: How many significant changes in RNA binding were detected (You'll need to settle on a suitable FDR threshold)?
+
+Answer: Using the code below, we identify 760 proteins with a significant change in RNA binding (1% FDR)
+
+M_G1 %>% filter(lm_BH<0.01) %>% nrow()
+
+
+3_using_limma.Rmd
+=================
+
+3.1 Question: Why do we expect a relationship between mean intensity and variance?
+
+Answer: All quantification values are esimates and include some error associated with technical variability. More abundant (higher intensity) proteins will have a relatively lower technical variability.
+
+
+3.2 Question: Why is the fold change the same with lm and limma?
+
+Answer: Limma moderates the standard error associated with the point estimate, and thus the t-statistic and associated P-value. It does not change the point estimate of the fold change.
+
+3.3 Questions: Why would the intensity values for this protein be so similar?
+
+Answer: It's possible this protein really does have a very consistent abundance, e.g very low biological variability. A more likely answer though is that this has just occured by random chance. Since we have quantified many proteins and have just 3 replicates, observing some proteins with nearly zero biological variability will happen by chance alone!
+
+
+3.4 Question: Why do the proteins which are detected as having a significant change with lm only have a lower standard deviation?
+
+Answer: These are likely to be the proteins with a low observed biological variability where the estimated std errors with limma are moderated to reflect the trend (e.g they are increased) and thus they are no longer deemed to have a significant change with limma.
+
+
+4_get_all_go_terms_h_sapiens.Rmd
+================================
+
+4.1 Question: What does the source function do? Why would we want to keep this code separate from the notebook.
+
+Answer: `Source` will read all the R code in the filepath given. It's exactly equivalent to copying it all to the console.
+
+
+4.2 Question: Why wouldn't every protein/gene be directly annotated with all terms up the hierarchy? 
+
+Answer: The benefit of having a defined hierarchy is that annotation with any term automatically means the protein/gene is also considered to be annotated with all parental terms. By not directly annotating with all terms, the size of the annotation data structure is minimised.
+
+
+5_Identify_over_rep_GO_terms.Rmd
+================================
+
+5.1 Question: Why do we have fewer proteins with an increase in RNA binding according to limma?
+
+Answer: Limma moderates the t-statistics and P-values for the linear model in order to estimate the true biological varaibility from features (in this case, proteins) with a similar abundance. Here, it appears that some of the proteins identified as having an increase in RNA binding using the standard lm function may have very low observed variance which is increased by the limma bayesian shrinkage and thus they are no longer detected as significant. We will explore this explanation further below.
+
+
+5.2 Question: How many GO terms did we test for over-representation in the `limma` results?
+
+Answer: The following indicates 11838 GO terms were tested
+limma_over_rep_go %>% pull(category) %>% unique() %>% length()
+
+
+5.3 Question: How many would we expect to have a p-value < 0.05 by chance?
+
+Answer: From the below, 592
+limma_over_rep_go %>% pull(category) %>% unique() %>% length() * 0.05
+
+
+5.4 Question: How many did have a p-value < 0.05?
+
+Answer: From the below, 585
+limma_over_rep_go %>% filter(over_represented_pvalue<0.05) %>% nrow()
+
+
+5.5 Question: What can you infer from this?
+
+Answer: There are probably very few GO terms which are truly over-represented. Most of those with P-value < 0.05 have a low P-value simply by chance.
+
+
+5.6 Question: Why would it be sub-optimal to calculate the magnitude of the over-representation as indicated above?
+
+Answer: We know the protein abundance is related to it's annotated functions and probability of being detected as having a significant change in RNA binding. After all, this is why we're using goseq to take account of the biasing factor of abundance in the GO term over-representation analysis. We therefore need to take account of this bias when we estimate the over-representation value too.
+
+
+5.7 Task: Modify the remove_redundant_GO_terms function to keep an arbitrary number of top GO terms within each sub tree of GO terms
+
+Answer: The function currently keeps the top term due to this line:
+
+head(1) # keep the top GO term
+
+We can update this to e.g:
+
+head(keep_n_terms)
+
+and add a keep_n_terms argument to the function thus (defaulted to 1):
+
+remove_redundant_GO_terms <- function(go_df, keep_n_terms=1){
+
+
+5.8 Task: Modify the plotTerms function so that it makes a separate plot for each ontology
+
+Answer: The dataframe we are plotting has a column called ontology. If we add the following to the plotting code, we will get a separate plot per ontology:
+
++ facet_wrap(~ontology)
+
+We may also want to remove the following line so that the ontology information is no longer included in the GO term name:
+
+go_df$term_for_plot <- paste0(go_df$term_for_plot, " (", go_df$ontology, ")")
+
+
+5.9 Question: Why are there proteins with p-values less than the FDR threshold (above the grey line) and >1.4 fold change but not identified as significant with limma?
+
+Answer: Because we are no longer testing the null hypothesis that the point fold-change is zero but that is is >1.4 (or less than -1.4). Thus, the point estimate must be significantly greater than 1.4.
+
+
+5.10 Task: Repeat the above analysis but for proteins with a decrease in RNA binding with either `lm` or `limma`.
+
+Answer:

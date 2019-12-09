@@ -28,7 +28,7 @@ source("./GO.R")
 
 \colorlet{shadecolor}{yellow!10} 
 \begin{shaded}
-Questions: What does the source function do? Why would we want to keep this code separate from the notebook.
+4.1 Question: What does the source function do? Why would we want to keep this code separate from the notebook.
 \end{shaded}
 \colorlet{shadecolor}{lightgray!10} 
 
@@ -90,7 +90,7 @@ print(sapply(TRNA_BPs, FUN=function(x) x %in% RBPs))
 
 \colorlet{shadecolor}{yellow!10} 
 \begin{shaded}
-Question: Why wouldn't every protein/gene be directly annotated with all terms up the hierarchy? 
+4.2 Question: Why wouldn't every protein/gene be directly annotated with all terms up the hierarchy? 
 \end{shaded}
 
 \colorlet{shadecolor}{lightgray!10} 

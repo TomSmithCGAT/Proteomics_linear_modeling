@@ -71,8 +71,7 @@ plotSA(total_fit_lm_c)
 
 \colorlet{shadecolor}{yellow!10} 
 \begin{shaded}
-Questions:
-- Why do we expect a relationship between mean intensity and variance?
+3.1 Question: Why do we expect a relationship between mean intensity and variance?
 \end{shaded}
 \colorlet{shadecolor}{lightgray!10} 
 
@@ -231,7 +230,7 @@ compare_methods %>% ggplot(aes(log10(lm_fold_change), log10(logFC))) +
 ```
 \colorlet{shadecolor}{yellow!10} 
 \begin{shaded}
-Questions: Why is the fold change the same with lm and limma?
+3.2 Question: Why is the fold change the same with lm and limma?
 \end{shaded}
 \colorlet{shadecolor}{lightgray!10} 
 
@@ -282,7 +281,7 @@ tidy(combined_intensities, addPheno=TRUE) %>%
 ```
 \colorlet{shadecolor}{yellow!10} 
 \begin{shaded}
-Questions: Why would the intensity values for this protein be so similar?
+3.3 Questions: Why would the intensity values for this protein be so similar?
 \end{shaded}
 \colorlet{shadecolor}{lightgray!10} 
 
@@ -327,7 +326,7 @@ print(mean_sigma_density)
 ```
 \colorlet{shadecolor}{yellow!10} 
 \begin{shaded}
-Questions: Why do the proteins which are detected as having a significant change with lm only have a lower standard deviation?
+3.4 Question: Why do the proteins which are detected as having a significant change with lm only have a lower standard deviation?
 \end{shaded}
 \colorlet{shadecolor}{lightgray!10} 
 

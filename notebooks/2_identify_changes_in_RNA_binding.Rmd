@@ -101,7 +101,7 @@ print(head(total_exprs))
 ```
 \colorlet{shadecolor}{yellow!10} 
 \begin{shaded}
-Question: Why doesn't the MSnSet object store all the data in this long format?
+2.1 Question: Why doesn't the MSnSet object store all the data in this long format?
 \end{shaded}
 
 \colorlet{shadecolor}{lightgray!10} 
@@ -188,12 +188,13 @@ M_G1 %>% ggplot(aes(lm_p_value)) + geom_histogram(bins=20)
 
 \colorlet{shadecolor}{blue!10} 
 \begin{shaded}
-Task: How many significant changes in RNA binding were detected (You'll need to settle on a suitable FDR threshold) ?
+2.2 Task: How many significant changes in RNA binding were detected (You'll need to settle on a suitable FDR threshold)?
 
 \end{shaded}
 
 \colorlet{shadecolor}{lightgray!10} 
 
+  
 
 So, we have detected a lot of proteins with a signficant change in RNA binding!!
 
